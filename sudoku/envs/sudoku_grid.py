@@ -7,9 +7,8 @@ from configs.environment import Config
 
 
 
-
 class Discrete(object):
-    def __init__(self, shape, dtype=np.int8):
+    def __init__(self, shape, dtype=np.float32):
         self.shape = shape
         self.dtype = dtype
 
@@ -18,13 +17,15 @@ class Discrete(object):
 
 
 class Box(object):
-    def __init__(self, shape, dtype=np.float16):
+    def __init__(self, low, high, shape, dtype=np.float32):
+        self.low = low
+        self.high = high
         self.shape = shape
         self.dtype = dtype
 
     def sample(self):
-        return np.random.rand(
-            self.shape[0], self.shape[1], self.shape[2]
+        return np.random.uniform(
+            low=self.low, high=self.high, size=self.shape
         ).astype(self.dtype)
 
 
@@ -39,10 +40,12 @@ class SudokuEnv(object):
         self.full_grid = full_grid
 
         # Actions
-        self.action_space = Discrete(Config.N_ACTIONS)
+        self.action_space = Discrete(Config.N_ACTIONS, dtype=np.int8)
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
-        self.observation_space = Box(shape=Config.OBS_SHAPE, dtype=np.int8)
+        self.observation_space = Box(
+            low=1, high=9, shape=Config.OBS_SHAPE, dtype=np.int8
+        )
 
 
     def _next_observation(self):
@@ -51,10 +54,12 @@ class SudokuEnv(object):
 
     def _take_action(self, action):
         # On récupère les informations de l'action
-        row_idx, col_idx, value = action
+        row_idx = np.ceil(action / (9 * 9))
+        col_idx = np.ceil(action % (9 * 9) / 9)
+        value = action % 9 + 1
 
         # On met à jour la grille
-        self.grid[row_idx, col_idx] = value + 1
+        self.grid[row_idx, col_idx] = value
 
         self.is_completed = np.all(self.grid > 0)
 

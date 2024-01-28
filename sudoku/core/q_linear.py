@@ -30,28 +30,28 @@ class Linear(DQN):
         state_shape = self.env.observation_space.shape
 #        state_shape = list(self.env.observation_space.shape)
 
-        self.s = tf.placeholder(tf.uint8, 
-                                shape=(None, 
-                                       state_shape[0], 
-                                       state_shape[1], 
-                                       state_shape[2]*config.state_history),
+        self.s = tf.placeholder(tf.uint8,
+                                shape=(None,
+                                       state_shape[0],
+                                       state_shape[1],
+                                       config.state_history),
                                 name="states")
-        self.a = tf.placeholder(tf.int32, 
+        self.a = tf.placeholder(tf.int32,
                                 shape=(None),
                                 name="actions")
-        self.r = tf.placeholder(tf.float32, 
+        self.r = tf.placeholder(tf.float32,
                                 shape=(None),
                                 name="rewards")
-        self.sp = tf.placeholder(tf.uint8, 
-                                 shape=(None, 
-                                        state_shape[0], 
-                                        state_shape[1], 
-                                        state_shape[2]*config.state_history),
+        self.sp = tf.placeholder(tf.uint8,
+                                 shape=(None,
+                                        state_shape[0],
+                                        state_shape[1],
+                                        config.state_history),
                                  name="next_states")
-        self.done_mask = tf.placeholder(tf.bool, 
+        self.done_mask = tf.placeholder(tf.bool,
                                         shape=(None),
                                         name="done")
-        self.lr = tf.placeholder(tf.float32, 
+        self.lr = tf.placeholder(tf.float32,
                                  shape=(),
                                  name="learning_rate")
 
@@ -75,15 +75,15 @@ class Linear(DQN):
         with tf.variable_scope(scope, reuse=reuse):
             out = tf.layers.flatten(state,
                                     name='flatten')
-            out = tf.layers.dense(out, 
-                                  Config.DIM_DENSE_1, 
+            out = tf.layers.dense(out,
+                                  Config.DIM_DENSE_1,
                                   activation="relu",
                                   name='fc1')
-            out = tf.layers.dense(out, 
-                                  Config.DIM_DENSE_2, 
+            out = tf.layers.dense(out,
+                                  Config.DIM_DENSE_2,
                                   activation="relu",
                                   name='fc2')
-            out = tf.layers.dense(out, 
+            out = tf.layers.dense(out,
                                   num_actions,
                                   activation="softmax",
                                   name='fc3')

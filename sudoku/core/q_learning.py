@@ -11,6 +11,7 @@ from utils.replay_buffer import ReplayBuffer
 
 from envs.sudoku_grid import SudokuEnv
 from configs.sudoku_samples import GRID
+from configs.sudoku_samples import FULL_GRID
 
 
 
@@ -294,7 +295,9 @@ class QN(object):
             env = self.env
 
         # replay memory to play
-        replay_buffer = ReplayBuffer(self.config.buffer_size, self.config.state_history)
+        replay_buffer = ReplayBuffer(
+            self.config.buffer_size, self.config.state_history
+        )
         rewards = []
 
         if prog_bar:
@@ -345,7 +348,7 @@ class QN(object):
         Re create an env and record a video for one episode
         """
 
-        env = SudokuEnv(GRID)
+        env = SudokuEnv(GRID, FULL_GRID)
 
         self.evaluate(env, 1)
         env.render()
