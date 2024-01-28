@@ -1,0 +1,8 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Jupiter
+.ipynb_checkpoints
+
+# Results directories
+results/
