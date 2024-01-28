@@ -81,9 +81,9 @@ class SudokuEnv(object):
         # Fonction de reward
         if done and self.current_step < Config.MAX_STEPS:
             # Si done==True après Config.MAX_STEPS/2 étapes, alors reward=5
-            reward = 10*(Config.MAX_STEPS-self.current_step+1)/Config.MAX_STEPS
+            reward = 10 - self.mse
         else:
-            reward = 0
+            reward = - self.mse
 
         obs = self._next_observation()
 
