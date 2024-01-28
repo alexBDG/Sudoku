@@ -16,7 +16,7 @@ class Config:
     MIN_MSE = 0.5
 
     N_ACTIONS = 9 * 9 * 9
-    OBS_SHAPE = (9, 9)
+    OBS_SHAPE = (9, 9, 1)
 
     DIM_DENSE_1 = 4 * N_ACTIONS
     DIM_DENSE_2 = 4 * N_ACTIONS

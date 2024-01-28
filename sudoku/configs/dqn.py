@@ -1,3 +1,7 @@
+# System imports.
+import os
+
+# Local imports.
 from .environment import Config
 
 class config():
@@ -9,11 +13,11 @@ class config():
     high             = 1000000.
 
     # output config
-    output_path  = "results/dqn_linear_results/"
-    model_output = output_path + "model.weights/"
-    log_path     = output_path + "log.txt"
-    plot_output  = output_path + "scores.png"
-    record_path  = output_path + "monitor/"
+    output_path  = os.path.join("results", "dqn_linear_results")
+    model_output = os.path.join(output_path, "model.weights")
+    log_path     = os.path.join(output_path, "log.txt")
+    plot_output  = os.path.join(output_path, "scores.png")
+    record_path  = os.path.join(output_path, "monitor")
 
     # model and training config
     num_episodes_test = 5       # 50

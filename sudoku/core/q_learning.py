@@ -329,7 +329,7 @@ class QN(object):
 
             # updates to perform at the end of an episode
             rewards.append(total_reward)
-            
+
             if prog_bar:
                 prog.update(i + 1, exact=[("Reward", total_reward)])
 

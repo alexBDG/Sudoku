@@ -34,7 +34,7 @@ class Linear(DQN):
                                 shape=(None,
                                        state_shape[0],
                                        state_shape[1],
-                                       config.state_history),
+                                       state_shape[2] * config.state_history),
                                 name="states")
         self.a = tf.placeholder(tf.int32,
                                 shape=(None),
@@ -46,7 +46,7 @@ class Linear(DQN):
                                  shape=(None,
                                         state_shape[0],
                                         state_shape[1],
-                                        config.state_history),
+                                        state_shape[2] * config.state_history),
                                  name="next_states")
         self.done_mask = tf.placeholder(tf.bool,
                                         shape=(None),

@@ -8,12 +8,11 @@ from configs.environment import Config
 
 
 class Discrete(object):
-    def __init__(self, shape, dtype=np.float32):
+    def __init__(self, shape):
         self.shape = shape
-        self.dtype = dtype
 
     def sample(self):
-        return np.random.randint(0, self.shape).astype(self.dtype)
+        return np.random.randint(0, self.shape)
 
 
 class Box(object):
@@ -40,7 +39,7 @@ class SudokuEnv(object):
         self.full_grid = full_grid
 
         # Actions
-        self.action_space = Discrete(Config.N_ACTIONS, dtype=np.int8)
+        self.action_space = Discrete(Config.N_ACTIONS)
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
         self.observation_space = Box(
@@ -54,16 +53,19 @@ class SudokuEnv(object):
 
     def _take_action(self, action):
         # On récupère les informations de l'action
-        row_idx = np.ceil(action / (9 * 9))
-        col_idx = np.ceil(action % (9 * 9) / 9)
+        row_idx = np.floor(action / (9 * 9)).astype(np.int8)
+        col_idx = np.floor(action % (9 * 9) / 9).astype(np.int8)
         value = action % 9 + 1
 
         # On met à jour la grille
-        self.grid[row_idx, col_idx] = value
+        if self.grid[row_idx, col_idx, 0] < 1:
+            self.grid[row_idx, col_idx, 0] = value
 
         self.is_completed = np.all(self.grid > 0)
 
-        self.mse = mean_squared_error(self.full_grid, self.grid)
+        self.mse = mean_squared_error(
+            self.full_grid.flatten(), self.grid.flatten()
+        )
         if self.mse < self.mse_min:
             self.mse_min = self.mse
 
@@ -89,14 +91,28 @@ class SudokuEnv(object):
 
 
     def reset(self):
+        self.current_step = 0
         self.is_completed = False
         self.grid = self.initial_grid
 
+        self.mse_min = mean_squared_error(
+            self.full_grid.flatten(), self.grid.flatten()
+        )
 
-    def render(self, mode='human', close=False):
-        grid_str = f"{'-' * 27}".join([
-            " | ".join([
-                "  ".join([str(el) for el in col]) for col in row.reshape(3, 3)
-            ]) for row in self.grid
-        ])
-        print(grid_str)
+        return self._next_observation()
+
+
+    def render(self, mode="human", close=False):
+        if mode == "human":
+            rows = []
+            for i, row in enumerate(self.grid):
+                if i % 3 == 0 and i > 0:
+                    rows.append("-" * 29)
+                cols = []
+                for col in row.reshape(3, 3):
+                    cols.append("  ".join([str(el) for el in col]))
+                rows.append(" " + " | ".join(cols))
+            print(f"\n".join(rows))
+
+        elif mode == "rgb_array":
+            return self.grid
