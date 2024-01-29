@@ -5,7 +5,7 @@ from core.q_linear import Linear
 from core.q_schedule import LinearSchedule
 from core.q_schedule import LinearExploration
 
-from configs.dqn import config
+from configs.linear import config
 from configs.sudoku_samples import GRID
 from configs.sudoku_samples import FULL_GRID
 

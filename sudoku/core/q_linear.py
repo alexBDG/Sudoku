@@ -10,7 +10,7 @@ from core.deep_q_learning import DQN
 from core.q_schedule import LinearSchedule
 from core.q_schedule import LinearExploration
 
-from configs.dqn import config
+from configs.linear import config
 from configs.environment import Config
 
 

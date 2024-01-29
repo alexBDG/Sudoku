@@ -131,8 +131,8 @@ class QN(object):
             q_values: deque
             scores_eval: list
         """
-        self.avg_reward = np.mean(rewards)
-        self.max_reward = np.max(rewards)
+        self.avg_reward = np.mean(rewards, initial=0.)
+        self.max_reward = np.max(rewards, initial=0.)
         self.std_reward = np.sqrt(np.var(rewards) / len(rewards))
 
         self.max_q = np.mean(max_q_values)
@@ -169,7 +169,7 @@ class QN(object):
         # interact with environment
         while t < self.config.nsteps_train:
             total_reward = 0
-            state = self.env.reset()
+            state, _ = self.env.reset()
             while True:
                 t += 1
                 last_eval += 1
@@ -188,7 +188,7 @@ class QN(object):
                 q_values += list(q_values)
 
                 # perform action in env
-                new_state, reward, done, info = self.env.step(action)
+                new_state, reward, done, _, info = self.env.step(action)
 
                 # store the transition
                 replay_buffer.store_effect(idx, action, reward, done)
@@ -240,7 +240,7 @@ class QN(object):
 
             if (t > self.config.learning_start) and self.config.record and (last_record > self.config.record_freq):
                 self.logger.info("Recording...")
-                last_record =0
+                last_record = 0
                 self.record()
 
         # last words
@@ -305,7 +305,7 @@ class QN(object):
 
         for i in range(num_episodes):
             total_reward = 0
-            state = env.reset()
+            state, _ = env.reset()
             while True:
                 if self.config.render_test: env.render()
 
@@ -316,7 +316,7 @@ class QN(object):
                 action = self.get_action(q_input)
 
                 # perform action in env
-                new_state, reward, done, info = env.step(action)
+                new_state, reward, done, _, info = env.step(action)
 
                 # store in replay memory
                 replay_buffer.store_effect(idx, action, reward, done)
