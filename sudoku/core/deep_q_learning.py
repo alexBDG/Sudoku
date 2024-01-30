@@ -1,8 +1,10 @@
+# System imports.
 import os
 import numpy as np
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 
+# Local imports.
 from core.q_learning import QN
 
 

@@ -16,7 +16,7 @@ class config():
     model_output = os.path.join(output_path, "model.weights")
     log_path = os.path.join(output_path, "log.txt")
     plot_output = os.path.join(output_path, "scores.png")
-    records_path = os.path.join(output_path, "records")
+    record_path = os.path.join(output_path, "records")
 
     # model and training config
     num_episodes_test = 20

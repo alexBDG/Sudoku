@@ -2,13 +2,14 @@
 import os
 import sys
 import numpy as np
+import gymnasium as gym
 from collections import deque
 
+# Local imports.
 from utils.general import Progbar
 from utils.general import get_logger
 from utils.general import export_plot
 from utils.replay_buffer import ReplayBuffer
-
 from envs.sudoku_grid import SudokuEnv
 from configs.sudoku_samples import GRID
 from configs.sudoku_samples import FULL_GRID
@@ -131,7 +132,7 @@ class QN(object):
             q_values: deque
             scores_eval: list
         """
-        self.avg_reward = np.mean(rewards, initial=0.)
+        self.avg_reward = np.mean(rewards)
         self.max_reward = np.max(rewards, initial=0.)
         self.std_reward = np.sqrt(np.var(rewards) / len(rewards))
 
@@ -241,7 +242,7 @@ class QN(object):
             if (t > self.config.learning_start) and self.config.record and (last_record > self.config.record_freq):
                 self.logger.info("Recording...")
                 last_record = 0
-                self.record()
+                self.record(t=t)
 
         # last words
         self.logger.info("- Training done.")
@@ -343,15 +344,21 @@ class QN(object):
         return avg_reward
 
 
-    def record(self):
+    def record(self, t=None):
         """
         Re create an env and record a video for one episode
+
+        Args:
+            t: (int) nths step
         """
 
-        env = SudokuEnv(GRID, FULL_GRID)
+        env = SudokuEnv(GRID, FULL_GRID, render_mode="rgb_array")
+        env = gym.wrappers.RecordVideo(
+            env, video_folder=self.config.record_path,
+            episode_trigger=lambda x: True, name_prefix=f"step-{t}"
+        )
 
         self.evaluate(env, 1)
-        env.render()
 
 
     def run(self, exp_schedule, lr_schedule):
@@ -367,11 +374,11 @@ class QN(object):
 
         # record one game at the beginning
         if self.config.record:
-            self.record()
+            self.record(t="start")
 
         # model
         self.train(exp_schedule, lr_schedule)
 
         # record one game at the end
         if self.config.record:
-            self.record()
+            self.record(t="end")

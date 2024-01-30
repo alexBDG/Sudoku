@@ -6,7 +6,6 @@ import gymnasium as gym
 from sklearn.metrics import mean_squared_error
 
 # Local imports.
-from utils.display import plot_sudoku
 from configs.environment import Config
 
 BLACK = (0, 0, 0)
@@ -38,7 +37,10 @@ class Box(object):
 
 class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
-    metadata = {'render_modes': ["human", "ansi", "rgb_array"], "render_fps": 60}
+    metadata = {
+        "render_modes": ["human", "ansi", "rgb_array"],
+        "render_fps": 60
+    }
 
     def __init__(self, grid, full_grid, render_mode="human"):
         self.grid = None
@@ -127,7 +129,7 @@ class SudokuEnv(gym.Env):
         super().reset(seed=seed)
         self.current_step = 0
         self.is_completed = False
-        self.grid = self.initial_grid
+        self.grid = self.initial_grid.copy()
 
         self.mse_min = mean_squared_error(
             self.full_grid.flatten(), self.grid.flatten()
@@ -153,17 +155,17 @@ class SudokuEnv(gym.Env):
             print(f"\n".join(rows))
 
         else:
-            self._render_frame()
+            return self._render_frame()
 
 
     def _render_frame(self):
         if self.window is None and self.render_mode == "human":
             pygame.init()
-            pygame.font.init()
             pygame.display.init()
             self.window = pygame.display.set_mode(
                 (self.window_size, self.window_size)
             )
+        pygame.font.init()
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
@@ -205,7 +207,8 @@ class SudokuEnv(gym.Env):
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.metadata["render_fps"])
-        else:  # rgb_array
+
+        elif self.render_mode == "rgb_array":
             return np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
             )
