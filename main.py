@@ -1,13 +1,11 @@
-# System imports.
-from envs.sudoku_grid import SudokuEnv
-
-from core.q_linear import Linear
-from core.q_schedule import LinearSchedule
-from core.q_schedule import LinearExploration
-
-from configs.linear import config
-from configs.sudoku_samples import GRID
-from configs.sudoku_samples import FULL_GRID
+# Local imports.
+from sudoku.envs.sudoku_grid import SudokuEnv
+from sudoku.core.q_linear import Linear
+from sudoku.core.q_schedule import LinearSchedule
+from sudoku.core.q_schedule import LinearExploration
+from sudoku.configs.linear import config
+from sudoku.configs.sudoku_samples import GRID
+from sudoku.configs.sudoku_samples import FULL_GRID
 
 
 

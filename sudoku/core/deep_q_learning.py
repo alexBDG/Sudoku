@@ -5,7 +5,7 @@ import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 
 # Local imports.
-from core.q_learning import QN
+from .q_learning import QN
 
 
 class DQN(QN):

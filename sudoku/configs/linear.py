@@ -19,7 +19,7 @@ class config():
     record_path = os.path.join(output_path, "records")
 
     # model and training config
-    num_episodes_test = 20
+    num_episodes_test = 10
     grad_clip         = True
     clip_val          = 10
     saving_freq       = 5000

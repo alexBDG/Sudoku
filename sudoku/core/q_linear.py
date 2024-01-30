@@ -6,12 +6,12 @@ sys.path.insert(0, r"C:\Users\alspe\Documents\Python Scripts\sudoku\sudoku")
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 
-from core.deep_q_learning import DQN
-from core.q_schedule import LinearSchedule
-from core.q_schedule import LinearExploration
+from .deep_q_learning import DQN
+from .q_schedule import LinearSchedule
+from .q_schedule import LinearExploration
 
-from configs.linear import config
-from configs.environment import Config
+from ..configs.linear import config
+from ..configs.environment import Config
 
 
 

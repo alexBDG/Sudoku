@@ -1,12 +1,11 @@
 # System imports.
-import os
 import pygame
 import numpy as np
 import gymnasium as gym
 from sklearn.metrics import mean_squared_error
 
 # Local imports.
-from configs.environment import Config
+from ..configs.environment import Config
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)

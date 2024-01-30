@@ -3,9 +3,9 @@ import os
 
 # Local imports.
 from utils.display import plot_sudoku
-from configs.linear import config
-from configs.sudoku_samples import GRID
-from configs.sudoku_samples import FULL_GRID
+from .configs.linear import config
+from .configs.sudoku_samples import GRID
+from .configs.sudoku_samples import FULL_GRID
 
 
 if __name__ == "__main__":

@@ -6,13 +6,13 @@ import gymnasium as gym
 from collections import deque
 
 # Local imports.
-from utils.general import Progbar
-from utils.general import get_logger
-from utils.general import export_plot
-from utils.replay_buffer import ReplayBuffer
-from envs.sudoku_grid import SudokuEnv
-from configs.sudoku_samples import GRID
-from configs.sudoku_samples import FULL_GRID
+from ..utils.general import Progbar
+from ..utils.general import get_logger
+from ..utils.general import export_plot
+from ..utils.replay_buffer import ReplayBuffer
+from ..envs.sudoku_grid import SudokuEnv
+from ..configs.sudoku_samples import GRID
+from ..configs.sudoku_samples import FULL_GRID
 
 
 
