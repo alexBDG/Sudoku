@@ -8,7 +8,9 @@ from sklearn.metrics import mean_squared_error
 from ..configs.environment import Config
 
 BLACK = (0, 0, 0)
+GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
+RED = (255, 0, 0)
 
 
 
@@ -38,7 +40,7 @@ class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 60
+        "render_fps": 4
     }
 
     def __init__(self, grid, full_grid, render_mode="human"):
@@ -50,6 +52,10 @@ class SudokuEnv(gym.Env):
 
         # Actions
         self.action_space = Discrete(Config.N_ACTIONS)
+        self._action_row_idx = None
+        self._action_col_idx = None
+        self._action_value = None
+        self._action_filled_new_case = None
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
         self.observation_space = Box(
@@ -69,13 +75,15 @@ class SudokuEnv(gym.Env):
 
     def _take_action(self, action):
         # On récupère les informations de l'action
-        row_idx = np.floor(action / (9 * 9)).astype(np.int8)
-        col_idx = np.floor(action % (9 * 9) / 9).astype(np.int8)
-        value = action % 9 + 1
+        self._action_row_idx = np.floor(action / (9 * 9)).astype(np.int8)
+        self._action_col_idx = np.floor(action % (9 * 9) / 9).astype(np.int8)
+        self._action_value = action % 9 + 1
 
         # On met à jour la grille
-        if self.grid[row_idx, col_idx, 0] < 1:
-            self.grid[row_idx, col_idx, 0] = value
+        self._action_filled_new_case = False
+        if self.grid[self._action_row_idx, self._action_col_idx, 0] < 1:
+            self._action_filled_new_case = True
+            self.grid[self._action_row_idx, self._action_col_idx, 0] = self._action_value
 
         self.is_completed = np.all(self.grid > 0)
 
@@ -86,24 +94,34 @@ class SudokuEnv(gym.Env):
             self.mse_min = self.mse
 
 
-    def _compute_reward(self):
+    def _compute_reward(self, terminated=False):
         reward = 0.
+
+        # Bonus for new cases
+        if self._action_filled_new_case:
+            reward += 1
+
+        # if terminated:
+        #     reward += np.sum(self.grid > 0) - np.sum(self.initial_grid > 0)
+
         if self.is_completed:
-            reward += 100
+            reward += 10
 
-        for k in range(1, 10):
-            mask = self.grid[:, :, 0] == k
-            # Check row unicity
-            reward -= np.sum(np.sum(mask, axis=0) > 1)
-            # Check col unicity
-            reward -= np.sum(np.sum(mask, axis=1) > 1)
-            # Check submatrix unicity
-            for i in range(3):
-                for j in range(3):
-                    mask = self.grid[3*i:3*(i+1), 3*j:3*(j+1), 0] == k
-                    reward -= np.sum(mask > 1)
+        # # Malus for non unique values
+        # for k in range(1, 10):
+        #     mask = self.grid[:, :, 0] == k
+        #     # Check row unicity
+        #     reward -= np.sum(np.sum(mask, axis=0) > 1)
+        #     # Check col unicity
+        #     reward -= np.sum(np.sum(mask, axis=1) > 1)
+        #     # Check submatrix unicity
+        #     for i in range(3):
+        #         for j in range(3):
+        #             mask = self.grid[3*i:3*(i+1), 3*j:3*(j+1), 0] == k
+        #             reward -= np.sum(mask > 1)
 
-        reward -= self.mse
+        # # Malus for error
+        # reward -= self.mse
 
         return reward
 
@@ -115,11 +133,8 @@ class SudokuEnv(gym.Env):
         self.current_step += 1
 
         terminated = (self.is_completed) or (self.current_step == Config.MAX_STEPS)
-        reward = self._compute_reward()
+        reward = self._compute_reward(terminated)
         obs = self._next_observation()
-
-        if self.render_mode == "human":
-            self._render_frame()
 
         return obs, reward, terminated, False, {}
 
@@ -134,9 +149,6 @@ class SudokuEnv(gym.Env):
             self.full_grid.flatten(), self.grid.flatten()
         )
         obs = self._next_observation()
-
-        if self.render_mode == "human":
-            self._render_frame()
 
         return obs, {}
 
@@ -168,7 +180,6 @@ class SudokuEnv(gym.Env):
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
-        grid = self.grid[:, :, 0]
         case_width = self.window_size // 9
 
         canvas = pygame.Surface((self.window_size, self.window_size))
@@ -188,14 +199,28 @@ class SudokuEnv(gym.Env):
             )
 
         # Remplissage des chiffres
+        grid = self.grid[:, :, 0]
+        initial_grid = self.initial_grid[:, :, 0]
         police = pygame.font.Font(None, 36)
         for i in range(9):
             for j in range(9):
-                if grid[i][j] != 0:
-                    texte = police.render(str(grid[i][j]), True, BLACK)
+                if initial_grid[i][j] > 0:
+                    texte = police.render(str(initial_grid[i][j]), True, BLACK)
+                elif grid[i][j] > 0:
+                    texte = police.render(str(grid[i][j]), True, GREY)
+                if initial_grid[i][j] + grid[i][j] > 0:
                     canvas.blit(
                         texte, (j * case_width + 20, i * case_width + 15)
                     )
+        if self._action_value is not None:
+            police = pygame.font.Font(None, 18)
+            texte = police.render(str(self._action_value), True, RED)
+            canvas.blit(
+                texte, (
+                    self._action_col_idx * case_width + 4,
+                    self._action_row_idx * case_width + 4
+                )
+            )
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
