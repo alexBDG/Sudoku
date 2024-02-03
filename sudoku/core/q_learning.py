@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import gymnasium as gym
 from collections import deque
+from moviepy.editor import VideoFileClip
 
 # Local imports.
 from ..utils.general import Progbar
@@ -375,6 +376,12 @@ class QN(object):
         # record one game at the beginning
         if self.config.record:
             self.record(t="start")
+            videoClip = VideoFileClip(os.path.join(
+                self.config.record_path, "step-start-episode-0.mp4"
+            ))
+            videoClip.write_gif(os.path.join(
+                self.config.record_path, "step-start-episode-0.gif"
+            ))
 
         # model
         self.train(exp_schedule, lr_schedule)
@@ -382,3 +389,9 @@ class QN(object):
         # record one game at the end
         if self.config.record:
             self.record(t="end")
+            videoClip = VideoFileClip(os.path.join(
+                self.config.record_path, "step-end-episode-0.mp4"
+            ))
+            videoClip.write_gif(os.path.join(
+                self.config.record_path, "step-end-episode-0.gif"
+            ))
