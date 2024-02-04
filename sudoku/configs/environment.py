@@ -3,7 +3,7 @@
 
 
 class Config:
-    MAX_STEPS = 100
+    MAX_STEPS = 10000
 
     N_ACTIONS = 9 * 9 * 9
     OBS_SHAPE = (9, 9, 1)
