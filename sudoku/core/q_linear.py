@@ -1,9 +1,10 @@
 
-import sys
-sys.path.insert(0, r"C:\Users\alspe\Documents\Python Scripts\sudoku\sudoku")
+# import sys
+# sys.path.insert(0, r"C:\Users\alspe\Documents\Python Scripts\sudoku\sudoku")
 
 # System imports.
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 tf.get_logger().setLevel('ERROR')
 
 from .deep_q_learning import DQN

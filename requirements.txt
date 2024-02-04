@@ -1,4 +1,5 @@
-tensorflow-gpu==1.15.0
-gymnasium==0.26.3
+tensorflow==2.15.0
+gymnasium==0.29.1
 pygame==2.5.2
+scikit-learn==1.4.0
 moviepy==1.0.3

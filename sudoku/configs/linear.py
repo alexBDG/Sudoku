@@ -12,7 +12,7 @@ class config():
     high             = 9 # 255.
 
     # output config
-    output_path = os.path.join("results", "q2_linear")
+    output_path = os.path.join("results", "729-actions")
     model_output = os.path.join(output_path, "model.weights")
     log_path = os.path.join(output_path, "log.txt")
     plot_output = os.path.join(output_path, "scores.png")

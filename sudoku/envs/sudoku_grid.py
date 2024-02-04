@@ -139,7 +139,7 @@ class SudokuEnv(gym.Env):
         return obs, reward, terminated, False, {}
 
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.current_step = 0
         self.is_completed = False

@@ -1,4 +1,4 @@
-![Python](https://img.shields.io/badge/python-3.6.13-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11.7-blue.svg)
 
 
 # Sudoku
