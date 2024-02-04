@@ -149,7 +149,10 @@ class SudokuEnv(gym.Env):
 
         self.current_step += 1
         self.is_completed = np.all(self.grid > 0)
-        self.is_unvalid = get_unvalid_cases(self.grid[:, :, 0]) > 0
+
+        self.is_unvalid = False
+        if self._action_filled_new_case:
+            self.is_unvalid = get_unvalid_cases(self.grid[:, :, 0]) > 0
 
         terminated = (
             self.is_completed or
