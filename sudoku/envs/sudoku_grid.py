@@ -40,7 +40,7 @@ class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 4
+        "render_fps": 1
     }
 
     def __init__(self, grid, full_grid, render_mode="human"):
@@ -52,8 +52,8 @@ class SudokuEnv(gym.Env):
 
         # Actions
         self.action_space = Discrete(Config.N_ACTIONS)
-        self._action_row_idx = None
-        self._action_col_idx = None
+        self._action_row_idx = 0
+        self._action_col_idx = 0
         self._action_value = None
         self._action_filled_new_case = None
 
@@ -75,13 +75,22 @@ class SudokuEnv(gym.Env):
 
     def _take_action(self, action):
         # On récupère les informations de l'action
-        self._action_row_idx = np.floor(action / (9 * 9)).astype(np.int8)
-        self._action_col_idx = np.floor(action % (9 * 9) / 9).astype(np.int8)
-        self._action_value = action % 9 + 1
+        self._action_value = None
+        if action == 0 and self._action_row_idx > 0:
+            self._action_row_idx -= 1
+        elif action == 1 and self._action_row_idx < 8:
+            self._action_row_idx += 1
+        elif action == 2 and self._action_col_idx > 0:
+            self._action_col_idx -= 1
+        elif action == 3 and self._action_col_idx < 8:
+            self._action_col_idx += 1
+        else:
+            self._action_value = (action + 1) - 4
 
         # On met à jour la grille
         self._action_filled_new_case = False
-        if self.grid[self._action_row_idx, self._action_col_idx, 0] < 1:
+        if (self._action_value is not None and
+            self.grid[self._action_row_idx, self._action_col_idx, 0] < 1):
             self._action_filled_new_case = True
             self.grid[self._action_row_idx, self._action_col_idx, 0] = self._action_value
 
@@ -105,7 +114,7 @@ class SudokuEnv(gym.Env):
         #     reward += np.sum(self.grid > 0) - np.sum(self.initial_grid > 0)
 
         if self.is_completed:
-            reward += 10
+            reward += 100
 
         # # Malus for non unique values
         # for k in range(1, 10):
@@ -197,6 +206,16 @@ class SudokuEnv(gym.Env):
                 (i * case_width, 0), (i * case_width, self.window_size),
                 2 if i % 3 == 0 else 1
             )
+
+        # Local cursor
+        x_i = self._action_col_idx * case_width + 1
+        y_i = self._action_row_idx * case_width + 1
+        x_i1 = (self._action_col_idx + 1) * case_width - 1
+        y_i1 = (self._action_row_idx + 1) * case_width - 1
+        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i, y_i1), 2)
+        pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 2)
+        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 2)
+        pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 2)
 
         # Remplissage des chiffres
         grid = self.grid[:, :, 0]
