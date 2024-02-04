@@ -3,3 +3,13 @@
 
 # Sudoku
 Solving Soduku
+
+
+Random agent:
+
+![Start](fig/step-start-episode-0.gif)
+
+
+Trained agent:
+
+![End](fig/step-end-episode-0.gif)
