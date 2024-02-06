@@ -74,7 +74,7 @@ class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 4
+        "render_fps": 10
     }
 
     def __init__(self, grid, full_grid, render_mode="human"):
@@ -152,7 +152,7 @@ class SudokuEnv(gym.Env):
 
         self.is_unvalid = False
         if self._action_filled_new_case:
-            self.is_unvalid = get_unvalid_cases(self.grid[:, :, 0]) > 0
+            self.is_unvalid = False# get_unvalid_cases(self.grid[:, :, 0]) > 0
 
         terminated = (
             self.is_completed or
@@ -254,11 +254,11 @@ class SudokuEnv(gym.Env):
 
         if self.is_unvalid:
             draw_warning(
-                canvas, self.window_size // 3, self.window_size + 45,
+                canvas, self.window_size // 4, self.window_size + 45,
                 radius=25
             )
             draw_warning(
-                canvas, self.window_size // 3 * 2, self.window_size + 45,
+                canvas, self.window_size // 4 * 3, self.window_size + 45,
                 radius=25
             )
 
@@ -284,19 +284,20 @@ class SudokuEnv(gym.Env):
             pygame.quit()
 
 
-def draw_warning(canvas, x, y, radius=25):
+def draw_warning(canvas, x, y, radius=25, width=5):
     # Circle
-    pygame.draw.circle(canvas, RED, (x, y), radius)
+    pygame.draw.circle(canvas, RED, (x, y), radius=radius, width=width)
 
     # Cross
-    cross_lenght = 50
     pygame.draw.line(
         canvas, RED,
-        (x - cross_lenght // 2, y),
-        (x + cross_lenght // 2, y), 2
+        (x - radius / np.sqrt(2), y + radius / np.sqrt(2)),
+        (x + radius / np.sqrt(2), y - radius / np.sqrt(2)),
+        width=width
     )
     pygame.draw.line(
         canvas, RED,
-        (x, y - cross_lenght // 2),
-        (x, y + cross_lenght // 2), 2
+        (x - radius / np.sqrt(2), y - radius / np.sqrt(2)),
+        (x + radius / np.sqrt(2), y + radius / np.sqrt(2)),
+        width=width
     )
