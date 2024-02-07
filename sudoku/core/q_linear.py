@@ -11,8 +11,7 @@ from .deep_q_learning import DQN
 from .q_schedule import LinearSchedule
 from .q_schedule import LinearExploration
 
-from ..configs.linear import config
-from ..configs.environment import Config
+from ..configs import settings
 
 
 
@@ -35,7 +34,7 @@ class Linear(DQN):
                                 shape=(None,
                                        state_shape[0],
                                        state_shape[1],
-                                       state_shape[2] * config.state_history),
+                                       state_shape[2] * settings.state_history),
                                 name="states")
         self.a = tf.placeholder(tf.int32,
                                 shape=(None),
@@ -47,7 +46,7 @@ class Linear(DQN):
                                  shape=(None,
                                         state_shape[0],
                                         state_shape[1],
-                                        state_shape[2] * config.state_history),
+                                        state_shape[2] * settings.state_history),
                                  name="next_states")
         self.done_mask = tf.placeholder(tf.bool,
                                         shape=(None),
@@ -63,7 +62,7 @@ class Linear(DQN):
 
         Args:
             state: (tf tensor) 
-            shape = (batch_size, img height, img width, nchannels x config.state_history)
+            shape = (batch_size, img height, img width, nchannels x settings.state_history)
             scope: (string) scope name, that specifies if target network or not
             reuse: (bool) reuse of variables in the scope
 
@@ -77,11 +76,11 @@ class Linear(DQN):
             out = tf.layers.flatten(state,
                                     name='flatten')
             out = tf.layers.dense(out,
-                                  Config.DIM_DENSE_1,
+                                  settings.DIM_DENSE_1,
                                   activation="relu",
                                   name='fc1')
             out = tf.layers.dense(out,
-                                  Config.DIM_DENSE_2,
+                                  settings.DIM_DENSE_2,
                                   activation="relu",
                                   name='fc2')
             out = tf.layers.dense(out,
@@ -127,10 +126,9 @@ class Linear(DQN):
         """
         # you may need this variable
         num_actions = self.env.action_space.shape
-#        num_actions = 8*2*Config.N_PARAMS
 
         q_samp = self.r + (1.-tf.cast(self.done_mask, tf.float32)) * \
-                        config.gamma * tf.reduce_max(target_q, axis=1)
+                        settings.gamma * tf.reduce_max(target_q, axis=1)
         q_sum = tf.reduce_sum(q*tf.one_hot(self.a, num_actions), axis=1)
         self.loss = tf.reduce_mean((q_samp - q_sum)**2)
 
@@ -163,14 +161,14 @@ if __name__ == '__main__':
 
     # exploration strategy
     exp_schedule = LinearExploration(
-        env, config.eps_begin, config.eps_end, config.eps_nsteps
+        env, settings.eps_begin, settings.eps_end, settings.eps_nsteps
     )
 
     # learning rate schedule
     lr_schedule  = LinearSchedule(
-        config.lr_begin, config.lr_end, config.lr_nsteps
+        settings.lr_begin, settings.lr_end, settings.lr_nsteps
     )
 
     # train model
-    model = Linear(env, config)
+    model = Linear(env, settings)
     model.run(exp_schedule, lr_schedule)

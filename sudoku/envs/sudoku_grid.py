@@ -5,7 +5,7 @@ import gymnasium as gym
 from sklearn.metrics import mean_squared_error
 
 # Local imports.
-from ..configs.environment import Config
+from ..configs import settings
 
 BLACK = (0, 0, 0)
 GREY = (128, 128, 128)
@@ -92,7 +92,7 @@ class SudokuEnv(gym.Env):
         self.window_size = 513  # The size of the PyGame window
 
         # Actions
-        self.action_space = Discrete(Config.N_ACTIONS)
+        self.action_space = Discrete(settings.N_ACTIONS)
         self._action_row_idx = None
         self._action_col_idx = None
         self._action_value = None
@@ -100,7 +100,7 @@ class SudokuEnv(gym.Env):
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
         self.observation_space = Box(
-            low=1, high=9, shape=Config.OBS_SHAPE, dtype=np.int8
+            low=1, high=9, shape=settings.OBS_SHAPE, dtype=np.int8
         )
 
         self.render_mode = render_mode
@@ -162,7 +162,7 @@ class SudokuEnv(gym.Env):
 
         terminated = (
             self.is_completed or
-            self.current_step == Config.MAX_STEPS or
+            self.current_step == settings.MAX_STEPS or
             self.is_unvalid
         )
         reward = self._compute_reward()
