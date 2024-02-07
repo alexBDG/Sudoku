@@ -6,3 +6,6 @@ __pycache__/
 
 # Results directories
 results/
+
+# Local settings
+local_settings.py

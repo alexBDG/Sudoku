@@ -5,13 +5,54 @@ import gymnasium as gym
 from sklearn.metrics import mean_squared_error
 
 # Local imports.
-from ..configs.environment import Config
+from ..configs import settings
 
 BLACK = (0, 0, 0)
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 
+
+
+def check_grid_validity(grid):
+    """
+    Check the validity of a Sudoku by computing count of unvalid values.
+    * Unicity of row values
+    * Unicity of column values
+    * Unicity of subgrid values
+    A subgrid is a subset of the grid, of size (\sqrt{n}, \sqrt{n}).
+
+    (Performances: 313 µs ± 102 µs per loop, mean ± std. dev. of 100 runs, 100
+    loops each)
+
+    Parameters
+    ----------
+    grid : ndarray
+        Input Sudoku grid, shape of (n, n).
+
+    Returns
+    -------
+    bool
+        Either the grid is valid or not.
+    """
+    n = grid.shape[0]
+    m = np.sqrt(n).astype(int)
+    is_valid = True
+    # Check row unicity
+    for row in grid:
+        row = row[row > 0]
+        is_valid = is_valid & (np.unique(row).shape[0] == row.shape[0])
+    # Check col unicity
+    for col in grid.T:
+        col = col[col > 0]
+        is_valid = is_valid & (np.unique(col).shape[0] == col.shape[0])
+    # Check submatrix unicity
+    for i in range(m):
+        for j in range(m):
+            subgrid = grid[m*i:m*(i+1), m*j:m*(j+1)]
+            subgrid = subgrid[subgrid > 0]
+            is_valid = is_valid & (np.unique(subgrid).shape[0] == subgrid.shape[0])
+    return is_valid
 
 
 class Discrete(object):
@@ -35,23 +76,23 @@ class Box(object):
         ).astype(self.dtype)
 
 
-
 class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 1
+        "render_fps": 10
     }
 
     def __init__(self, grid, full_grid, render_mode="human"):
         self.grid = None
         self.is_completed = None
+        self.is_unvalid = False
         self.initial_grid = grid
         self.full_grid = full_grid
-        self.window_size = 512  # The size of the PyGame window
+        self.window_size = 513  # The size of the PyGame window
 
         # Actions
-        self.action_space = Discrete(Config.N_ACTIONS)
+        self.action_space = Discrete(settings.N_ACTIONS)
         self._action_row_idx = 0
         self._action_col_idx = 0
         self._action_value = None
@@ -59,7 +100,7 @@ class SudokuEnv(gym.Env):
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
         self.observation_space = Box(
-            low=1, high=9, shape=Config.OBS_SHAPE, dtype=np.int8
+            low=1, high=9, shape=settings.OBS_SHAPE, dtype=np.int8
         )
 
         self.render_mode = render_mode
@@ -94,8 +135,6 @@ class SudokuEnv(gym.Env):
             self._action_filled_new_case = True
             self.grid[self._action_row_idx, self._action_col_idx, 0] = self._action_value
 
-        self.is_completed = np.all(self.grid > 0)
-
         self.mse = mean_squared_error(
             self.full_grid.flatten(), self.grid.flatten()
         )
@@ -103,31 +142,15 @@ class SudokuEnv(gym.Env):
             self.mse_min = self.mse
 
 
-    def _compute_reward(self, terminated=False):
-        reward = 0.
+    def _compute_reward(self):
+        reward = 0
 
         # Bonus for new cases
-        if self._action_filled_new_case:
+        if self._action_filled_new_case and not self.is_unvalid:
             reward += 1
 
-        # if terminated:
-        #     reward += np.sum(self.grid > 0) - np.sum(self.initial_grid > 0)
-
-        if self.is_completed:
+        if self.is_completed and not self.is_unvalid:
             reward += 100
-
-        # # Malus for non unique values
-        # for k in range(1, 10):
-        #     mask = self.grid[:, :, 0] == k
-        #     # Check row unicity
-        #     reward -= np.sum(np.sum(mask, axis=0) > 1)
-        #     # Check col unicity
-        #     reward -= np.sum(np.sum(mask, axis=1) > 1)
-        #     # Check submatrix unicity
-        #     for i in range(3):
-        #         for j in range(3):
-        #             mask = self.grid[3*i:3*(i+1), 3*j:3*(j+1), 0] == k
-        #             reward -= np.sum(mask > 1)
 
         # # Malus for error
         # reward -= self.mse
@@ -140,15 +163,24 @@ class SudokuEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
+        self.is_completed = np.all(self.grid > 0)
 
-        terminated = (self.is_completed) or (self.current_step == Config.MAX_STEPS)
-        reward = self._compute_reward(terminated)
+        self.is_unvalid = False
+        if self._action_filled_new_case:
+            self.is_unvalid = not check_grid_validity(self.grid[:, :, 0])
+
+        terminated = (
+            self.is_completed or
+            self.current_step == settings.MAX_STEPS or
+            self.is_unvalid
+        )
+        reward = self._compute_reward()
         obs = self._next_observation()
 
         return obs, reward, terminated, False, {}
 
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.current_step = 0
         self.is_completed = False
@@ -163,19 +195,20 @@ class SudokuEnv(gym.Env):
 
 
     def render(self):
-        if self.render_mode == "ansi":
-            rows = []
-            for i, row in enumerate(self.grid):
-                if i % 3 == 0 and i > 0:
-                    rows.append("+".join(["-" * 9] * 3))
-                cols = []
-                for col in row.reshape(3, 3):
-                    cols.append("  ".join([str(el) for el in col]))
-                rows.append(" " + " | ".join(cols))
-            print(f"\n".join(rows))
+        if self.current_step == 0 or self._action_filled_new_case:
+            if self.render_mode == "ansi":
+                rows = []
+                for i, row in enumerate(self.grid):
+                    if i % 3 == 0 and i > 0:
+                        rows.append("+".join(["-" * 9] * 3))
+                    cols = []
+                    for col in row.reshape(3, 3):
+                        cols.append("  ".join([str(el) for el in col]))
+                    rows.append(" " + " | ".join(cols))
+                print(f"\n".join(rows))
 
-        else:
-            return self._render_frame()
+            else:
+                return self._render_frame()
 
 
     def _render_frame(self):
@@ -183,7 +216,7 @@ class SudokuEnv(gym.Env):
             pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode(
-                (self.window_size, self.window_size)
+                (self.window_size, self.window_size + 100)
             )
         pygame.font.init()
         if self.clock is None and self.render_mode == "human":
@@ -191,21 +224,26 @@ class SudokuEnv(gym.Env):
 
         case_width = self.window_size // 9
 
-        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas = pygame.Surface((self.window_size, self.window_size + 100))
         canvas.fill(WHITE)
         for i in range(1, 9):
-            # Lignes horizontales
+            # Horizontal lines
             pygame.draw.line(
                 canvas, BLACK,
                 (0, i * case_width), (self.window_size, i * case_width),
                 2 if i % 3 == 0 else 1
             )
-            # Lignes verticales
+            # Vertical lines
             pygame.draw.line(
                 canvas, BLACK,
                 (i * case_width, 0), (i * case_width, self.window_size),
                 2 if i % 3 == 0 else 1
             )
+        # Last line
+        pygame.draw.line(
+            canvas, BLACK,
+            (0, self.window_size), (self.window_size, self.window_size), 2
+        )
 
         # Local cursor
         x_i = self._action_col_idx * case_width + 1
@@ -231,14 +269,22 @@ class SudokuEnv(gym.Env):
                     canvas.blit(
                         texte, (j * case_width + 20, i * case_width + 15)
                     )
-        if self._action_value is not None:
-            police = pygame.font.Font(None, 18)
-            texte = police.render(str(self._action_value), True, RED)
-            canvas.blit(
-                texte, (
-                    self._action_col_idx * case_width + 4,
-                    self._action_row_idx * case_width + 4
-                )
+
+        # Step counter
+        police = pygame.font.Font(None, 36)
+        texte = police.render(f"Step: {self.current_step}", True, RED)
+        canvas.blit(
+            texte, (self.window_size // 2 - 35, self.window_size + 45)
+        )
+
+        if self.is_unvalid:
+            draw_warning(
+                canvas, self.window_size // 4, self.window_size + 45,
+                radius=25
+            )
+            draw_warning(
+                canvas, self.window_size // 4 * 3, self.window_size + 45,
+                radius=25
             )
 
         if self.render_mode == "human":
@@ -261,3 +307,22 @@ class SudokuEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
+
+
+def draw_warning(canvas, x, y, radius=25, width=5):
+    # Circle
+    pygame.draw.circle(canvas, RED, (x, y), radius=radius, width=width)
+
+    # Cross
+    pygame.draw.line(
+        canvas, RED,
+        (x - radius / np.sqrt(2), y + radius / np.sqrt(2)),
+        (x + radius / np.sqrt(2), y - radius / np.sqrt(2)),
+        width=width
+    )
+    pygame.draw.line(
+        canvas, RED,
+        (x - radius / np.sqrt(2), y - radius / np.sqrt(2)),
+        (x + radius / np.sqrt(2), y + radius / np.sqrt(2)),
+        width=width
+    )
