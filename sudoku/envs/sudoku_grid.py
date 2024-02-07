@@ -14,13 +14,16 @@ RED = (255, 0, 0)
 
 
 
-def get_unvalid_cases(grid):
+def check_grid_validity(grid):
     """
     Check the validity of a Sudoku by computing count of unvalid values.
     * Unicity of row values
     * Unicity of column values
     * Unicity of subgrid values
-    A subgrid is a subset of the grid, of size (n^(1/2), n^(1/2)).
+    A subgrid is a subset of the grid, of size (\sqrt{n}, \sqrt{n}).
+
+    (Performances: 313 µs ± 102 µs per loop, mean ± std. dev. of 100 runs, 100
+    loops each)
 
     Parameters
     ----------
@@ -29,24 +32,27 @@ def get_unvalid_cases(grid):
 
     Returns
     -------
-    int
-        Number of unvalid values
+    bool
+        Either the grid is valid or not.
     """
     n = grid.shape[0]
-    m = np.square(n)
-    unvalid = 0
-    for k in range(1, n + 1):
-        mask = grid == k
-        # Check row unicity
-        unvalid += np.sum(np.sum(mask, axis=0) > 1)
-        # Check col unicity
-        unvalid += np.sum(np.sum(mask, axis=1) > 1)
-        # Check submatrix unicity
-        for i in range(m):
-            for j in range(m):
-                mask = grid[m*i:m*(i+1), m*j:m*(j+1)] == k
-                unvalid += np.sum(mask > 1)
-    return unvalid
+    m = np.sqrt(n).astype(int)
+    is_valid = True
+    # Check row unicity
+    for row in grid:
+        row = row[row > 0]
+        is_valid = is_valid & (np.unique(row).shape[0] == row.shape[0])
+    # Check col unicity
+    for col in grid.T:
+        col = col[col > 0]
+        is_valid = is_valid & (np.unique(col).shape[0] == col.shape[0])
+    # Check submatrix unicity
+    for i in range(m):
+        for j in range(m):
+            subgrid = grid[m*i:m*(i+1), m*j:m*(j+1)]
+            subgrid = subgrid[subgrid > 0]
+            is_valid = is_valid & (np.unique(subgrid).shape[0] == subgrid.shape[0])
+    return is_valid
 
 
 class Discrete(object):
@@ -152,7 +158,7 @@ class SudokuEnv(gym.Env):
 
         self.is_unvalid = False
         if self._action_filled_new_case:
-            self.is_unvalid = False# get_unvalid_cases(self.grid[:, :, 0]) > 0
+            self.is_unvalid = not check_grid_validity(self.grid[:, :, 0])
 
         terminated = (
             self.is_completed or
