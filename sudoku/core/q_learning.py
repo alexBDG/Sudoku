@@ -361,13 +361,13 @@ class QN(object):
 
         self.evaluate(env, 1)
 
-        # Save as GIF
-        video_name = os.path.join(
-            self.config.record_path, f"step-{t}-episode-0"
-        )
-        videoClip = VideoFileClip(f"{video_name}.mp4")
-        videoClip.write_gif(f"{video_name}.gif")
-        os.remove(f"{video_name}.mp4")
+        # # Save as GIF
+        # video_name = os.path.join(
+        #     self.config.record_path, f"step-{t}-episode-0"
+        # )
+        # videoClip = VideoFileClip(f"{video_name}.mp4")
+        # videoClip.write_gif(f"{video_name}.gif")
+        # os.remove(f"{video_name}.mp4")
 
 
     def run(self, exp_schedule, lr_schedule):
@@ -384,6 +384,12 @@ class QN(object):
         # record one game at the beginning
         if self.config.record:
             self.record(t="start")
+            # Save as GIF
+            video_name = os.path.join(
+                self.config.record_path, f"step-start-episode-0"
+            )
+            videoClip = VideoFileClip(f"{video_name}.mp4")
+            videoClip.write_gif(f"{video_name}.gif")
 
         # model
         self.train(exp_schedule, lr_schedule)
@@ -391,3 +397,9 @@ class QN(object):
         # record one game at the end
         if self.config.record:
             self.record(t="end")
+            # Save as GIF
+            video_name = os.path.join(
+                self.config.record_path, f"step-end-episode-0"
+            )
+            videoClip = VideoFileClip(f"{video_name}.mp4")
+            videoClip.write_gif(f"{video_name}.gif")

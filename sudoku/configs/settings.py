@@ -47,11 +47,11 @@ learning_start     = 50000
 # Environment settings
 MAX_STEPS = 10000
 
-N_ACTIONS = 9 * 9 * 9
+N_ACTIONS = 9 + 4
 OBS_SHAPE = (9, 9, 1)
 
-DIM_DENSE_1 = N_ACTIONS // 9
-DIM_DENSE_2 = N_ACTIONS // 9
+DIM_DENSE_1 = 128
+DIM_DENSE_2 = 128
 
 
 try:

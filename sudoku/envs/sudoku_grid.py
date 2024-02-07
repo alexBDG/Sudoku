@@ -1,7 +1,9 @@
 # System imports.
+import os
 import pygame
 import numpy as np
 import gymnasium as gym
+from datetime import datetime
 from sklearn.metrics import mean_squared_error
 
 # Local imports.
@@ -80,7 +82,7 @@ class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
-        "render_fps": 10
+        "render_fps": 30
     }
 
     def __init__(self, grid, full_grid, render_mode="human"):
@@ -110,12 +112,19 @@ class SudokuEnv(gym.Env):
         self.clock = None
 
 
+        timestamp = datetime.now().strftime("%Hh %Mmin %Ss")
+        self.tmp_file = os.path.join("results", f"{timestamp}.log")
+        with open(self.tmp_file, "w") as f:
+            f.write("Step: 0000 - i/j: 0/0\n")
+
+
     def _next_observation(self):
         return self.grid
 
 
     def _take_action(self, action):
         # On récupère les informations de l'action
+        self._action = action
         self._action_value = None
         if action == 0 and self._action_row_idx > 0:
             self._action_row_idx -= 1
@@ -125,7 +134,7 @@ class SudokuEnv(gym.Env):
             self._action_col_idx -= 1
         elif action == 3 and self._action_col_idx < 8:
             self._action_col_idx += 1
-        else:
+        elif action >= 4:
             self._action_value = (action + 1) - 4
 
         # On met à jour la grille
@@ -155,6 +164,7 @@ class SudokuEnv(gym.Env):
         # # Malus for error
         # reward -= self.mse
 
+        self._action_reward = reward
         return reward
 
 
@@ -195,20 +205,25 @@ class SudokuEnv(gym.Env):
 
 
     def render(self):
-        if self.current_step == 0 or self._action_filled_new_case:
-            if self.render_mode == "ansi":
-                rows = []
-                for i, row in enumerate(self.grid):
-                    if i % 3 == 0 and i > 0:
-                        rows.append("+".join(["-" * 9] * 3))
-                    cols = []
-                    for col in row.reshape(3, 3):
-                        cols.append("  ".join([str(el) for el in col]))
-                    rows.append(" " + " | ".join(cols))
-                print(f"\n".join(rows))
+        if self.current_step > 0:
+            with open(self.tmp_file, "a") as f:
+                f.write(f"Step: {self.current_step:04d} - Action: {self._action:02d} - ")
+                f.write(f"i/j: {self._action_row_idx}/{self._action_col_idx} - ")
+                f.write(f"New: {self._action_filled_new_case} - Reward: {self._action_reward}\n")
+        # if self.current_step == 0 or self._action_filled_new_case or self._action_value is None:
+        if self.render_mode == "ansi":
+            rows = []
+            for i, row in enumerate(self.grid):
+                if i % 3 == 0 and i > 0:
+                    rows.append("+".join(["-" * 9] * 3))
+                cols = []
+                for col in row.reshape(3, 3):
+                    cols.append("  ".join([str(el) for el in col]))
+                rows.append(" " + " | ".join(cols))
+            print(f"\n".join(rows))
 
-            else:
-                return self._render_frame()
+        else:
+            return self._render_frame()
 
 
     def _render_frame(self):
@@ -246,14 +261,14 @@ class SudokuEnv(gym.Env):
         )
 
         # Local cursor
-        x_i = self._action_col_idx * case_width + 1
-        y_i = self._action_row_idx * case_width + 1
-        x_i1 = (self._action_col_idx + 1) * case_width - 1
-        y_i1 = (self._action_row_idx + 1) * case_width - 1
-        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i, y_i1), 2)
-        pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 2)
-        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 2)
-        pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 2)
+        x_i = self._action_col_idx * case_width + 2
+        y_i = self._action_row_idx * case_width + 2
+        x_i1 = (self._action_col_idx + 1) * case_width - 4
+        y_i1 = (self._action_row_idx + 1) * case_width - 4
+        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i, y_i1), 4)
+        pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 4)
+        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 4)
+        pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 4)
 
         # Remplissage des chiffres
         grid = self.grid[:, :, 0]
