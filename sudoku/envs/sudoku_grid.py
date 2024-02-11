@@ -1,10 +1,7 @@
 # System imports.
-import os
 import pygame
 import numpy as np
 import gymnasium as gym
-from datetime import datetime
-from sklearn.metrics import mean_squared_error
 
 # Local imports.
 from ..configs import settings
@@ -121,11 +118,6 @@ class SudokuEnv(gym.Env):
         self.window = None
         self.clock = None
 
-        # timestamp = datetime.now().strftime("%Hh %Mmin %Ss")
-        # self.tmp_file = os.path.join("results", f"{timestamp}.log")
-        # with open(self.tmp_file, "w") as f:
-        #     f.write("Step: 0000 - i/j: 0/0\n")
-
 
     def _next_observation(self):
         return self.grid
@@ -169,12 +161,6 @@ class SudokuEnv(gym.Env):
             self._action_filled_new_case = True
             self.grid[idx, 0] = self._action_value
 
-        # self.mse = mean_squared_error(
-        #     self.full_grid.flatten(), self.grid.flatten()
-        # )
-        # if self.mse < self.mse_min:
-        #     self.mse_min = self.mse
-
 
     def _compute_reward(self):
         reward = 0
@@ -185,9 +171,6 @@ class SudokuEnv(gym.Env):
 
         if self.is_completed and not self.is_unvalid:
             reward += 100
-
-        # # Malus for error
-        # reward -= self.mse
 
         self._action_reward = reward
         return reward
@@ -221,9 +204,6 @@ class SudokuEnv(gym.Env):
         self.is_completed = False
         self.grid = self.initial_grid.copy()
 
-        # self.mse_min = mean_squared_error(
-        #     self.full_grid.flatten(), self.grid.flatten()
-        # )
         obs = self._next_observation()
 
         return obs, {}
@@ -247,14 +227,6 @@ class SudokuEnv(gym.Env):
 
 
     def _render_frame(self):
-        row_idx = int(np.arange(9)[self.grid[:, :, 1].sum(1).astype(bool)])
-        col_idx = int(np.arange(9)[self.grid[:, :, 1].sum(0).astype(bool)])
-        # if self.current_step > 0:
-        #     with open(self.tmp_file, "a") as f:
-        #         f.write(f"Step: {self.current_step:04d} - Action: {self._action:02d} - ")
-        #         f.write(f"i/j: {row_idx}/{col_idx} - ")
-        #         f.write(f"New: {self._action_filled_new_case} - Reward: {self._action_reward}\n")
-
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
@@ -289,6 +261,8 @@ class SudokuEnv(gym.Env):
         )
 
         # Local cursor
+        row_idx = int(np.arange(9)[self.grid[:, :, 1].sum(1).astype(bool)])
+        col_idx = int(np.arange(9)[self.grid[:, :, 1].sum(0).astype(bool)])
         x_i = col_idx * case_width + 2
         y_i = row_idx * case_width + 2
         x_i1 = (col_idx + 1) * case_width - 4

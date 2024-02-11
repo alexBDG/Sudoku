@@ -10,7 +10,6 @@ from moviepy.editor import VideoFileClip
 # Local imports.
 from ..utils.general import Summarize
 from ..utils.general import get_logger
-from ..utils.general import export_plot
 from ..utils.replay_buffer import ReplayBuffer
 from ..envs.sudoku_grid import SudokuEnv
 from ..configs.sudoku_samples import GRID
@@ -171,8 +170,7 @@ class QN(object):
 
         episodes = 0 # time control of nb of elasped episodes
         t = last_eval = last_record = 0 # time control of nb of steps
-        scores_eval = [] # list of scores computed at iteration time
-        scores_eval += [self.evaluate()]
+        summarize.update_evaluation(1, reward=self.evaluate())
 
         pbar = tqdm(total=self.config.nsteps_train)
 
@@ -209,7 +207,7 @@ class QN(object):
 
                 # logging stuff
                 pbar.update(1)
-                summarize.update(
+                summarize.update_step(
                     1,
                     reward=reward,
                     loss=loss_eval,
@@ -218,7 +216,9 @@ class QN(object):
                 )
                 if ((t > self.config.learning_start) and (t % self.config.log_freq == 0) and
                    (t % self.config.learning_freq == 0)):
-                    self.update_averages(rewards, max_q_values, q_values, scores_eval)
+                    self.update_averages(
+                        rewards, max_q_values, q_values, summarize.scores_eval
+                    )
                     exp_schedule.update(t)
                     lr_schedule.update(t)
                     pbar.set_description(f"#{episodes} episodes")
@@ -249,8 +249,7 @@ class QN(object):
             if (t > self.config.learning_start) and (last_eval > self.config.eval_freq):
                 # evaluate our policy
                 last_eval = 0
-                print("")
-                scores_eval += [self.evaluate()]
+                summarize.update_evaluation(1, reward=self.evaluate())
 
             if (t > self.config.learning_start) and self.config.record and (last_record > self.config.record_freq):
                 self.logger.info("Recording...")
@@ -262,8 +261,8 @@ class QN(object):
         pbar.close()
         self.logger.info("- Training done.")
         self.save()
-        scores_eval += [self.evaluate()]
-        export_plot(scores_eval, "Scores", self.config.plot_output)
+        summarize.update_evaluation(1, reward=self.evaluate())
+        summarize.plot()
 
 
     def train_step(self, t, replay_buffer, lr):
