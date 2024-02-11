@@ -5,11 +5,11 @@
 Solving Soduku
 
 
-Random agent:
+Random agent                           | Trained agent
+:-------------------------------------:|:----------------------------------:
+![Start](fig/step-start-episode-0.gif) | ![End](fig/step-end-episode-0.gif)
 
-![Start](fig/step-start-episode-0.gif)
 
+Learning steps:
 
-Trained agent:
-
-![End](fig/step-end-episode-0.gif)
+![End](fig/summarize.png)
