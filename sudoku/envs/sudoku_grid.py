@@ -70,12 +70,24 @@ class Box(object):
         self.low = low
         self.high = high
         self.shape = shape
+        self._grid_shape = self.shape[:-1] + (1,)
         self.dtype = dtype
 
     def sample(self):
-        return np.random.uniform(
-            low=self.low, high=self.high, size=self.shape
-        ).astype(self.dtype)
+        # Create a grid for index, filled with 0 and 1 (1 is for the cursor
+        # position)
+        idx = np.zeros(self._grid_shape, dtype=self.dtype).flatten()
+        idx[0] = 1
+        np.random.shuffle(idx)
+        idx = idx.reshape(self._grid_shape)
+
+        # Create a grid for data
+        data = np.random.randint(
+            low=self.low, high=self.high+1, size=self._grid_shape,
+            dtype=self.dtype
+        )
+
+        return np.concatenate([data, idx], axis=-1)
 
 
 class SudokuEnv(gym.Env):
@@ -95,8 +107,6 @@ class SudokuEnv(gym.Env):
 
         # Actions
         self.action_space = Discrete(settings.N_ACTIONS)
-        self._action_row_idx = 0
-        self._action_col_idx = 0
         self._action_value = None
         self._action_filled_new_case = None
 
@@ -111,11 +121,10 @@ class SudokuEnv(gym.Env):
         self.window = None
         self.clock = None
 
-
-        timestamp = datetime.now().strftime("%Hh %Mmin %Ss")
-        self.tmp_file = os.path.join("results", f"{timestamp}.log")
-        with open(self.tmp_file, "w") as f:
-            f.write("Step: 0000 - i/j: 0/0\n")
+        # timestamp = datetime.now().strftime("%Hh %Mmin %Ss")
+        # self.tmp_file = os.path.join("results", f"{timestamp}.log")
+        # with open(self.tmp_file, "w") as f:
+        #     f.write("Step: 0000 - i/j: 0/0\n")
 
 
     def _next_observation(self):
@@ -123,32 +132,48 @@ class SudokuEnv(gym.Env):
 
 
     def _take_action(self, action):
-        # On récupère les informations de l'action
+        # Get action's informations
         self._action = action
         self._action_value = None
-        if action == 0 and self._action_row_idx > 0:
-            self._action_row_idx -= 1
-        elif action == 1 and self._action_row_idx < 8:
-            self._action_row_idx += 1
-        elif action == 2 and self._action_col_idx > 0:
-            self._action_col_idx -= 1
-        elif action == 3 and self._action_col_idx < 8:
-            self._action_col_idx += 1
+        # Get current row/col indexes
+        row_idx = np.arange(9)[self.grid[:, :, 1].sum(1).astype(bool)]
+        col_idx = np.arange(9)[self.grid[:, :, 1].sum(0).astype(bool)]
+        # Apply cursor changing or value setting
+        if action == 0 and row_idx > 0:
+            # Up
+            self.grid[:, :, 1] = np.vstack([
+                self.grid[1:, :, 1], self.grid[0, :, 1]
+            ])
+        elif action == 1 and row_idx < 8:
+            # Down
+            self.grid[:, :, 1] = np.vstack([
+                self.grid[-1, :, 1], self.grid[:-1, :, 1]
+            ])
+        elif action == 2 and col_idx > 0:
+            # Right
+            self.grid[:, :, 1] = np.hstack([
+                self.grid[:, -1, 1].reshape(-1, 1), self.grid[:, :-1, 1]
+            ])
+        elif action == 3 and col_idx < 8:
+            # Left
+            self.grid[:, :, 1] = np.hstack([
+                self.grid[:, 1:, 1], self.grid[:, 0, 1].reshape(-1, 1)
+            ])
         elif action >= 4:
             self._action_value = (action + 1) - 4
 
         # On met à jour la grille
         self._action_filled_new_case = False
-        if (self._action_value is not None and
-            self.grid[self._action_row_idx, self._action_col_idx, 0] < 1):
+        idx = self.grid[:, :, 1].astype(bool)
+        if (self._action_value is not None and self.grid[idx, 0] < 1):
             self._action_filled_new_case = True
-            self.grid[self._action_row_idx, self._action_col_idx, 0] = self._action_value
+            self.grid[idx, 0] = self._action_value
 
-        self.mse = mean_squared_error(
-            self.full_grid.flatten(), self.grid.flatten()
-        )
-        if self.mse < self.mse_min:
-            self.mse_min = self.mse
+        # self.mse = mean_squared_error(
+        #     self.full_grid.flatten(), self.grid.flatten()
+        # )
+        # if self.mse < self.mse_min:
+        #     self.mse_min = self.mse
 
 
     def _compute_reward(self):
@@ -173,7 +198,7 @@ class SudokuEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
-        self.is_completed = np.all(self.grid > 0)
+        self.is_completed = np.all(self.grid[:, :, 0] > 0)
 
         self.is_unvalid = False
         if self._action_filled_new_case:
@@ -196,20 +221,15 @@ class SudokuEnv(gym.Env):
         self.is_completed = False
         self.grid = self.initial_grid.copy()
 
-        self.mse_min = mean_squared_error(
-            self.full_grid.flatten(), self.grid.flatten()
-        )
+        # self.mse_min = mean_squared_error(
+        #     self.full_grid.flatten(), self.grid.flatten()
+        # )
         obs = self._next_observation()
 
         return obs, {}
 
 
     def render(self):
-        if self.current_step > 0:
-            with open(self.tmp_file, "a") as f:
-                f.write(f"Step: {self.current_step:04d} - Action: {self._action:02d} - ")
-                f.write(f"i/j: {self._action_row_idx}/{self._action_col_idx} - ")
-                f.write(f"New: {self._action_filled_new_case} - Reward: {self._action_reward}\n")
         # if self.current_step == 0 or self._action_filled_new_case or self._action_value is None:
         if self.render_mode == "ansi":
             rows = []
@@ -227,6 +247,14 @@ class SudokuEnv(gym.Env):
 
 
     def _render_frame(self):
+        row_idx = int(np.arange(9)[self.grid[:, :, 1].sum(1).astype(bool)])
+        col_idx = int(np.arange(9)[self.grid[:, :, 1].sum(0).astype(bool)])
+        # if self.current_step > 0:
+        #     with open(self.tmp_file, "a") as f:
+        #         f.write(f"Step: {self.current_step:04d} - Action: {self._action:02d} - ")
+        #         f.write(f"i/j: {row_idx}/{col_idx} - ")
+        #         f.write(f"New: {self._action_filled_new_case} - Reward: {self._action_reward}\n")
+
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.display.init()
@@ -261,10 +289,10 @@ class SudokuEnv(gym.Env):
         )
 
         # Local cursor
-        x_i = self._action_col_idx * case_width + 2
-        y_i = self._action_row_idx * case_width + 2
-        x_i1 = (self._action_col_idx + 1) * case_width - 4
-        y_i1 = (self._action_row_idx + 1) * case_width - 4
+        x_i = col_idx * case_width + 2
+        y_i = row_idx * case_width + 2
+        x_i1 = (col_idx + 1) * case_width - 4
+        y_i1 = (row_idx + 1) * case_width - 4
         pygame.draw.line(canvas, RED, (x_i, y_i), (x_i, y_i1), 4)
         pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 4)
         pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 4)

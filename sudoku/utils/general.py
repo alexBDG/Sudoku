@@ -1,8 +1,7 @@
-import time
-import sys
+# System imports.
 import logging
-import numpy as np
 import matplotlib
+import numpy as np
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
@@ -39,120 +38,86 @@ def get_logger(filename):
     return logger
 
 
-class Progbar(object):
-    """Progbar class copied from keras (https://github.com/fchollet/keras/)
-    
-    Displays a progress bar.
-    Small edit : added strict arg to update
-    # Arguments
-        target: Total number of steps expected.
-        interval: Minimum visual progress update interval (in seconds).
-    """
+class Summarize(object):
+    def __init__(self, file_path: str, total: int) -> None:
+        self.file_path = file_path
+        self.total = total
+        self.step = 0
+        self.episode = 0
+        self._idx_steps = np.full((self.total), fill_value=np.nan)
+        self._idx_episodes = np.full((self.total), fill_value=np.nan)
+        self._step_loss = np.full((self.total), fill_value=np.nan)
+        self._step_reward = np.full((self.total), fill_value=np.nan)
+        self._episode_reward = np.full((self.total), fill_value=np.nan)
+        self._step_epsilon = np.full((self.total), fill_value=np.nan)
+        self._step_learning_rate = np.full((self.total), fill_value=np.nan)
 
-    def __init__(self, target, width=30, verbose=1, discount=0.9):
-        self.width = width
-        self.target = target
-        self.sum_values = {}
-        self.exp_avg = {}
-        self.unique_values = []
-        self.start = time.time()
-        self.total_width = 0
-        self.seen_so_far = 0
-        self.verbose = verbose
-        self.discount = discount
+    def update(self, n: int, reward: float, loss: float, learning_rate: float,
+               epsilon: float) -> None:
+        self._idx_steps[self.step] = self.step
+        self._step_loss[self.step] = loss
+        self._step_reward[self.step] = reward
+        self._step_epsilon[self.step] = epsilon
+        self._step_learning_rate[self.step] = learning_rate
+        self.step += n
 
-    def update(self, current, values=[], exact=[], strict=[], exp_avg=[]):
-        """
-        Updates the progress bar.
-        # Arguments
-            current: Index of current step.
-            values: List of tuples (name, value_for_last_step).
-                The progress bar will display averages for these values.
-            exact: List of tuples (name, value_for_last_step).
-                The progress bar will display these values directly.
-        """
+    def update_episode(self, episode: int, reward: float) -> None:
+        self._idx_episodes[self.episode] = self.episode
+        self._episode_reward[self.episode] = reward
+        self.episode += episode
 
-        for k, v in values:
-            if k not in self.sum_values:
-                self.sum_values[k] = [v * (current - self.seen_so_far), current - self.seen_so_far]
-                self.unique_values.append(k)
-            else:
-                self.sum_values[k][0] += v * (current - self.seen_so_far)
-                self.sum_values[k][1] += (current - self.seen_so_far)
-        for k, v in exact:
-            if k not in self.sum_values:
-                self.unique_values.append(k)
-            self.sum_values[k] = [v, 1]
-        for k, v in strict:
-            if k not in self.sum_values:
-                self.unique_values.append(k)
-            self.sum_values[k] = v
-        for k, v in exp_avg:
-            if k not in self.exp_avg:
-                self.exp_avg[k] = v
-            else:
-                self.exp_avg[k] *= self.discount
-                self.exp_avg[k] += (1-self.discount)*v
+    def plot(self) -> None:
+        fig, axs = plt.subplots(
+            3, 1, constrained_layout=True, figsize=(2*6.8, 2*4.6)
+        )
 
-        self.seen_so_far = current
+        # Filter only filled values
+        idx = ~np.isnan(self._idx_episodes)
 
-        now = time.time()
-        if self.verbose == 1:
-            prev_total_width = self.total_width
-            sys.stdout.write("\b" * prev_total_width)
-            sys.stdout.write("\r")
+        # Episodes
+        axs[0].scatter(self._idx_episodes[idx], self._episode_reward[idx])
+        axs[0].set_ylabel("Total Reward")
+        axs[0].set_xlabel("Episodes")
 
-            numdigits = int(np.floor(np.log10(self.target))) + 1
-            barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-            bar = barstr % (current, self.target)
-            prog = float(current)/self.target
-            prog_width = int(self.width*prog)
-            if prog_width > 0:
-                bar += ('='*(prog_width-1))
-                if current < self.target:
-                    bar += '>'
-                else:
-                    bar += '='
-            bar += ('.'*(self.width-prog_width))
-            bar += ']'
-            sys.stdout.write(bar)
-            self.total_width = len(bar)
+        # Filter only filled values
+        idx = ~np.isnan(self._idx_steps)
 
-            if current:
-                time_per_unit = (now - self.start) / current
-            else:
-                time_per_unit = 0
-            eta = time_per_unit*(self.target - current)
-            info = ''
-            if current < self.target:
-                info += ' - ETA: %ds' % eta
-            else:
-                info += ' - %ds' % (now - self.start)
-            for k in self.unique_values:
-                if type(self.sum_values[k]) is list:
-                    info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
-                else:
-                    info += ' - %s: %s' % (k, self.sum_values[k])
+        # Reward/Loss
+        axs[1].scatter(
+            self._idx_steps[idx], self._step_reward[idx],
+            c="red"
+        )
+        axs[1].set_ylabel("Average Reward", color="red")
+        axs[1].set_xlabel("Steps")
+        axs[1].tick_params(axis="y", labelcolor="red")
+        axs[1].spines['left'].set_color('red')
+        ax1 = axs[1].twinx()
+        ax1.scatter(
+            self._idx_steps[idx], self._step_loss[idx],
+            c="blue"
+        )
+        ax1.set_yscale("log")
+        ax1.spines['right'].set_color('blue')
+        ax1.set_ylabel("Loss", color="blue")
+        ax1.tick_params(axis="y", labelcolor="blue")
 
-            for k, v in self.exp_avg.items():
-                info += ' - %s: %.4f' % (k, v)
+        # Epsilon/Learning rate
+        axs[2].scatter(
+            self._idx_steps[idx], self._step_epsilon[idx],
+            c="red"
+        )
+        axs[2].set_ylabel("Epsilon", color="red")
+        axs[2].set_xlabel("Steps")
+        axs[2].tick_params(axis='y', labelcolor="red")
+        axs[2].spines['left'].set_color('red')
+        ax2 = axs[2].twinx()
+        ax2.scatter(
+            self._idx_steps[idx], self._step_learning_rate[idx],
+            c="blue"
+        )
+        ax2.spines['right'].set_color('blue')
+        ax2.set_ylabel("Learning Rate", color="blue")
+        ax2.tick_params(axis='y', labelcolor="blue")
 
-            self.total_width += len(info)
-            if prev_total_width > self.total_width:
-                info += ((prev_total_width-self.total_width) * " ")
-
-            sys.stdout.write(info)
-            sys.stdout.flush()
-
-            if current >= self.target:
-                sys.stdout.write("\n")
-
-        if self.verbose == 2:
-            if current >= self.target:
-                info = '%ds' % (now - self.start)
-                for k in self.unique_values:
-                    info += ' - %s: %.4f' % (k, self.sum_values[k][0] / max(1, self.sum_values[k][1]))
-                sys.stdout.write(info + "\n")
-
-    def add(self, n, values=[]):
-        self.update(self.seen_so_far+n, values)
+        fig.savefig(self.file_path)
+        plt.close(fig)
