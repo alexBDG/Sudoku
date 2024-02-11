@@ -30,19 +30,19 @@ record_freq       = 50000
 soft_epsilon      = 0.05
 
 # hyper params
-nsteps_train       = 1000000
+nsteps_train       = 10000000
 batch_size         = 256
 buffer_size        = 50000
 target_update_freq = 500
 gamma              = 0.99
 learning_freq      = 4
 state_history      = 4
-lr_begin           = 0.1
-lr_end             = 0.005
-lr_nsteps          = nsteps_train/2
+lr_begin           = 0.001
+lr_end             = 0.00001
+lr_nsteps          = 7500000
 eps_begin          = 1
 eps_end            = 0.01
-eps_nsteps         = 750000
+eps_nsteps         = 5000000
 learning_start     = 50000
 
 
