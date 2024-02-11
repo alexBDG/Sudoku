@@ -1,6 +1,6 @@
 # System imports.
 import os
-
+from datetime import datetime
 
 
 # env config
@@ -11,10 +11,12 @@ record           = True
 high             = 9 # 255.
 
 # output config
-output_path = os.path.join("results", "729-actions")
+timestamp = datetime.now().strftime("%Y-%m-%d %HH%M")
+output_path = os.path.join("results", f"13-actions {timestamp}")
 model_output = os.path.join(output_path, "model.weights")
 log_path = os.path.join(output_path, "log.txt")
 plot_output = os.path.join(output_path, "scores.png")
+summarize_output = os.path.join(output_path, "summarize.png")
 record_path = os.path.join(output_path, "records")
 
 # model and training config
@@ -47,11 +49,11 @@ learning_start     = 50000
 # Environment settings
 MAX_STEPS = 10000
 
-N_ACTIONS = 9 * 9 * 9
-OBS_SHAPE = (9, 9, 1)
+N_ACTIONS = 9 + 4
+OBS_SHAPE = (9, 9, 2)
 
-DIM_DENSE_1 = N_ACTIONS // 9
-DIM_DENSE_2 = N_ACTIONS // 9
+DIM_DENSE_1 = 128
+DIM_DENSE_2 = 128
 
 
 try:
