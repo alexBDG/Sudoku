@@ -37,8 +37,8 @@ target_update_freq = 500
 gamma              = 0.99
 learning_freq      = 4
 state_history      = 4
-lr_begin           = 0.001
-lr_end             = 0.00001
+lr_begin           = 0.0005
+lr_end             = 0.000001
 lr_nsteps          = 7500000
 eps_begin          = 1
 eps_end            = 0.01
@@ -52,8 +52,8 @@ MAX_STEPS = 10000
 N_ACTIONS = 9 + 4
 OBS_SHAPE = (9, 9, 2)
 
-DIM_DENSE_1 = 128
-DIM_DENSE_2 = 128
+DIM_DENSE_1 = 64
+DIM_DENSE_2 = 64
 
 
 try:

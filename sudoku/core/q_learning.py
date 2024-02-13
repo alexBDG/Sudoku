@@ -367,14 +367,6 @@ class QN(object):
 
         self.evaluate(env, 1)
 
-        # # Save as GIF
-        # video_name = os.path.join(
-        #     self.config.record_path, f"step-{t}-episode-0"
-        # )
-        # videoClip = VideoFileClip(f"{video_name}.mp4")
-        # videoClip.write_gif(f"{video_name}.gif")
-        # os.remove(f"{video_name}.mp4")
-
 
     def run(self, exp_schedule, lr_schedule):
         """
@@ -395,7 +387,7 @@ class QN(object):
                 self.config.record_path, f"step-start-episode-0"
             )
             videoClip = VideoFileClip(f"{video_name}.mp4")
-            videoClip.write_gif(f"{video_name}.gif")
+            videoClip.write_gif(f"{video_name}.gif", fps=3)
 
         # model
         self.train(exp_schedule, lr_schedule)
@@ -408,4 +400,4 @@ class QN(object):
                 self.config.record_path, f"step-end-episode-0"
             )
             videoClip = VideoFileClip(f"{video_name}.mp4")
-            videoClip.write_gif(f"{video_name}.gif")
+            videoClip.write_gif(f"{video_name}.gif", fps=3)
