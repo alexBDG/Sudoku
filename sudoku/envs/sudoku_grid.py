@@ -13,6 +13,27 @@ RED = (255, 0, 0)
 
 
 
+def grid_3d_to_2d(grid):
+    """
+    Transform one hot grid into 2d one.
+
+    Parameters
+    ----------
+    grid : ndarray
+        Input Sudoku one hot grid, shape of (n, n, n).
+
+    Returns
+    -------
+    grid : ndarray
+        Input Sudoku grid, shape of (n, n).
+    """
+    n = grid.shape[0]
+    factor = np.arange(1, n+1).reshape(1, 1, -1)
+    grid_3d = grid.astype(int)
+    grid_2d = np.sum(factor * grid_3d, axis=-1)
+    return grid_2d
+
+
 def check_grid_validity(grid):
     """
     Check the validity of a Sudoku by computing count of unvalid values.
@@ -94,12 +115,11 @@ class SudokuEnv(gym.Env):
         "render_fps": 30
     }
 
-    def __init__(self, grid, full_grid, render_mode="human"):
+    def __init__(self, grid, render_mode="human"):
         self.grid = None
         self.is_completed = None
         self.is_unvalid = False
         self.initial_grid = grid
-        self.full_grid = full_grid
         self.window_size = 513  # The size of the PyGame window
 
         # Actions
@@ -109,7 +129,7 @@ class SudokuEnv(gym.Env):
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
         self.observation_space = Box(
-            low=1, high=9, shape=settings.OBS_SHAPE, dtype=np.int8
+            low=1, high=9, shape=settings.OBS_SHAPE, dtype=np.float32
         )
 
         self.render_mode = render_mode
@@ -127,39 +147,44 @@ class SudokuEnv(gym.Env):
         # Get action's informations
         self._action = action
         self._action_value = None
+        is_value = False
+
         # Get current row/col indexes
-        row_idx = np.arange(9)[self.grid[:, :, 1].sum(1).astype(bool)]
-        col_idx = np.arange(9)[self.grid[:, :, 1].sum(0).astype(bool)]
+        row_idx = np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)]
+        col_idx = np.arange(9)[self.grid[:, :, -1].sum(0).astype(bool)]
+
         # Apply cursor changing or value setting
         if action == 0 and row_idx > 0:
             # Up
-            self.grid[:, :, 1] = np.vstack([
-                self.grid[1:, :, 1], self.grid[0, :, 1]
+            self.grid[:, :, -1] = np.vstack([
+                self.grid[1:, :, -1], self.grid[0, :, -1]
             ])
         elif action == 1 and row_idx < 8:
             # Down
-            self.grid[:, :, 1] = np.vstack([
-                self.grid[-1, :, 1], self.grid[:-1, :, 1]
+            self.grid[:, :, -1] = np.vstack([
+                self.grid[-1, :, -1], self.grid[:-1, :, -1]
             ])
         elif action == 2 and col_idx > 0:
             # Right
-            self.grid[:, :, 1] = np.hstack([
-                self.grid[:, -1, 1].reshape(-1, 1), self.grid[:, :-1, 1]
+            self.grid[:, :, -1] = np.hstack([
+                self.grid[:, -1, -1].reshape(-1, 1), self.grid[:, :-1, -1]
             ])
         elif action == 3 and col_idx < 8:
             # Left
-            self.grid[:, :, 1] = np.hstack([
-                self.grid[:, 1:, 1], self.grid[:, 0, 1].reshape(-1, 1)
+            self.grid[:, :, -1] = np.hstack([
+                self.grid[:, 1:, -1], self.grid[:, 0, -1].reshape(-1, 1)
             ])
         elif action >= 4:
+            is_value = True
             self._action_value = (action + 1) - 4
 
         # On met à jour la grille
         self._action_filled_new_case = False
-        idx = self.grid[:, :, 1].astype(bool)
-        if (self._action_value is not None and self.grid[idx, 0] < 1):
+        idx = self.grid[:, :, -1].astype(bool)
+        if (is_value and self.grid[idx, 0] > 0):
             self._action_filled_new_case = True
-            self.grid[idx, 0] = self._action_value
+            self.grid[idx, self._action_value - 1] = 1
+            self.grid[idx, 0] = 0
 
 
     def _compute_reward(self):
@@ -181,11 +206,13 @@ class SudokuEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
-        self.is_completed = np.all(self.grid[:, :, 0] > 0)
+        self.is_completed = np.sum(self.grid[:, :, 0]) < 1
 
         self.is_unvalid = False
         if self._action_filled_new_case:
-            self.is_unvalid = not check_grid_validity(self.grid[:, :, 0])
+            # Transform one hot grid into 2d grid
+            grid_2d = grid_3d_to_2d(self.grid[:, :, 1:-1])
+            self.is_unvalid = not check_grid_validity(grid_2d)
 
         terminated = (
             self.is_completed or
@@ -261,8 +288,8 @@ class SudokuEnv(gym.Env):
         )
 
         # Local cursor
-        row_idx = int(np.arange(9)[self.grid[:, :, 1].sum(1).astype(bool)])
-        col_idx = int(np.arange(9)[self.grid[:, :, 1].sum(0).astype(bool)])
+        row_idx = int(np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)])
+        col_idx = int(np.arange(9)[self.grid[:, :, -1].sum(0).astype(bool)])
         x_i = col_idx * case_width + 2
         y_i = row_idx * case_width + 2
         x_i1 = (col_idx + 1) * case_width - 4
@@ -272,9 +299,9 @@ class SudokuEnv(gym.Env):
         pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 4)
         pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 4)
 
-        # Remplissage des chiffres
-        grid = self.grid[:, :, 0]
-        initial_grid = self.initial_grid[:, :, 0]
+        # Filling digit
+        grid = grid_3d_to_2d(self.grid[:, :, 1:-1])
+        initial_grid = grid_3d_to_2d(self.initial_grid[:, :, 1:-1])
         police = pygame.font.Font(None, 36)
         for i in range(9):
             for j in range(9):

@@ -13,7 +13,6 @@ from ..utils.general import get_logger
 from ..utils.replay_buffer import ReplayBuffer
 from ..envs.sudoku_grid import SudokuEnv
 from ..configs.sudoku_samples import GRID
-from ..configs.sudoku_samples import FULL_GRID
 
 
 
@@ -357,7 +356,7 @@ class QN(object):
             t: (int) nths step
         """
 
-        env = SudokuEnv(GRID, FULL_GRID, render_mode="rgb_array")
+        env = SudokuEnv(GRID, render_mode="rgb_array")
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
             env = gym.wrappers.RecordVideo(

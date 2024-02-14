@@ -5,13 +5,12 @@ from sudoku.core.q_schedule import LinearSchedule
 from sudoku.core.q_schedule import LinearExploration
 from sudoku.configs import settings
 from sudoku.configs.sudoku_samples import GRID
-from sudoku.configs.sudoku_samples import FULL_GRID
 
 
 
 if __name__ == "__main__":
     # make env
-    env = SudokuEnv(GRID, FULL_GRID)
+    env = SudokuEnv(GRID)
 
     # exploration strategy
     exp_schedule = LinearExploration(
