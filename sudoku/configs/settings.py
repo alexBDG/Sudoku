@@ -24,26 +24,26 @@ num_episodes_test = 20
 grad_clip         = True
 clip_val          = 10
 saving_freq       = 50000
-log_freq          = 50
+log_freq          = 500
 eval_freq         = 50000
 record_freq       = 50000
 soft_epsilon      = 0.05
 
 # hyper params
-nsteps_train       = 10000000
+nsteps_train       = 3000000
 batch_size         = 256
-buffer_size        = 50000
+buffer_size        = 300000
 target_update_freq = 500
 gamma              = 0.99
 learning_freq      = 4
 state_history      = 4
-lr_begin           = 0.0005
-lr_end             = 0.000001
-lr_nsteps          = 7500000
+lr_begin           = 0.00005
+lr_end             = 0.0000005
+lr_nsteps          = 2750000
 eps_begin          = 1
 eps_end            = 0.01
-eps_nsteps         = 5000000
-learning_start     = 50000
+eps_nsteps         = 2500000
+learning_start     = 300000
 
 
 # Environment settings

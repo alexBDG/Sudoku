@@ -170,7 +170,7 @@ class QN(object):
 
         episodes = 0 # time control of nb of elasped episodes
         t = last_eval = last_record = 0 # time control of nb of steps
-        summarize.update_evaluation(1, reward=self.evaluate())
+        summarize.update_evaluation(0, reward=self.evaluate())
 
         pbar = tqdm(total=self.config.nsteps_train)
 

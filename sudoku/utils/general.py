@@ -110,11 +110,11 @@ class Summarize(object):
             color="tab:red", ls="-", marker="x", label="Evaluation", lw=3.
         )
 
-        axs[0].set_xscale(
-            "function",
-            functions=(self._step_to_episode(), self._episode_to_step())
-        )
-        axs[0].margins(x=0.)
+        # axs[0].set_xscale(
+        #     "function",
+        #     functions=(self._step_to_episode(), self._episode_to_step())
+        # )
+        # axs[0].margins(x=0.)
 
         # Filter only filled values
         idx = ~np.isnan(self._idx_step)
@@ -137,7 +137,7 @@ class Summarize(object):
         ax1.spines['right'].set_color('tab:blue')
         ax1.set_ylabel("Loss", color="tab:blue")
         ax1.tick_params(axis="y", labelcolor="tab:blue")
-        axs[1].margins(x=0.)
+        # axs[1].margins(x=0.)
 
         # Epsilon/Learning rate
         axs[2].scatter(
@@ -156,7 +156,7 @@ class Summarize(object):
         ax2.spines['right'].set_color('tab:blue')
         ax2.set_ylabel("Learning Rate", color="tab:blue")
         ax2.tick_params(axis='y', labelcolor="tab:blue")
-        axs[2].margins(x=0.)
+        # axs[2].margins(x=0.)
 
         fig.savefig(self.file_path)
         plt.close(fig)
