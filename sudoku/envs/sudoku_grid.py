@@ -88,7 +88,8 @@ class Box(object):
         self.low = low
         self.high = high
         self.shape = shape
-        self._grid_shape = self.shape[:-1] + (1,)
+        self._grid_shape = shape[:-1] + (shape[-1] - 1,)  # Remove idx channels
+        self._idx_shape = shape[:-1] + (1,)  # Remove data channels
         self.dtype = dtype
 
     def sample(self):
@@ -101,9 +102,8 @@ class Box(object):
 
         # Create a grid for data
         data = np.random.randint(
-            low=self.low, high=self.high+1, size=self._grid_shape,
-            dtype=self.dtype
-        )
+            low=self.low, high=self.high+1, size=self._idx_shape,
+        ).astype(self.dtype)
 
         return np.concatenate([data, idx], axis=-1)
 
