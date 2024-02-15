@@ -95,14 +95,14 @@ class Box(object):
     def sample(self):
         # Create a grid for index, filled with 0 and 1 (1 is for the cursor
         # position)
-        idx = np.zeros(self._grid_shape, dtype=self.dtype).flatten()
+        idx = np.zeros(self._idx_shape, dtype=self.dtype).flatten()
         idx[0] = 1
         np.random.shuffle(idx)
-        idx = idx.reshape(self._grid_shape)
+        idx = idx.reshape(self._idx_shape)
 
         # Create a grid for data
         data = np.random.randint(
-            low=self.low, high=self.high+1, size=self._idx_shape,
+            low=self.low, high=self.high+1, size=self._grid_shape,
         ).astype(self.dtype)
 
         return np.concatenate([data, idx], axis=-1)
