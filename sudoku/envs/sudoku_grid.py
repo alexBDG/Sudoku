@@ -115,11 +115,12 @@ class SudokuEnv(gym.Env):
         "render_fps": 30
     }
 
-    def __init__(self, grid, render_mode="human"):
+    def __init__(self, grid, render_mode="human", dtype=np.float32):
         self.grid = None
         self.is_completed = None
         self.is_unvalid = False
         self.initial_grid = grid
+        self.dtype = dtype
         self.window_size = 513  # The size of the PyGame window
 
         # Actions
@@ -129,7 +130,7 @@ class SudokuEnv(gym.Env):
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
         self.observation_space = Box(
-            low=1, high=9, shape=settings.OBS_SHAPE, dtype=np.float32
+            low=1, high=9, shape=settings.OBS_SHAPE, dtype=self.dtype
         )
 
         self.render_mode = render_mode
@@ -137,6 +138,18 @@ class SudokuEnv(gym.Env):
 
         self.window = None
         self.clock = None
+
+
+    def _init_grid(self):
+        # Create a grid for index, filled with 0 and 1 (1 is for the cursor
+        # position)
+        idx_shape = settings.OBS_SHAPE[:-1] + (1,)
+        idx = np.zeros(idx_shape, dtype=self.dtype).flatten()
+        idx[0] = 1
+        np.random.shuffle(idx)
+        idx = idx.reshape(idx_shape)
+
+        return np.concatenate([self.initial_grid.copy(), idx], axis=-1)
 
 
     def _next_observation(self):
@@ -229,7 +242,7 @@ class SudokuEnv(gym.Env):
         super().reset(seed=seed)
         self.current_step = 0
         self.is_completed = False
-        self.grid = self.initial_grid.copy()
+        self.grid = self._init_grid()
 
         obs = self._next_observation()
 
@@ -301,7 +314,7 @@ class SudokuEnv(gym.Env):
 
         # Filling digit
         grid = grid_3d_to_2d(self.grid[:, :, 1:-1])
-        initial_grid = grid_3d_to_2d(self.initial_grid[:, :, 1:-1])
+        initial_grid = grid_3d_to_2d(self.initial_grid[:, :, 1:])
         police = pygame.font.Font(None, 36)
         for i in range(9):
             for j in range(9):
