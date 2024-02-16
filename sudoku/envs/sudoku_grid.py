@@ -117,11 +117,13 @@ class SudokuEnv(gym.Env):
 
     def __init__(self, grid, render_mode="human", dtype=np.float32):
         self.grid = None
+        self.cumulative_reward = None
         self.is_completed = None
         self.is_unvalid = False
         self.initial_grid = grid
         self.dtype = dtype
         self.window_size = 513  # The size of the PyGame window
+        self.empty_cases = np.sum(grid[:, :, 0] > 0)
 
         # Actions
         self.action_space = Discrete(settings.N_ACTIONS)
@@ -191,13 +193,12 @@ class SudokuEnv(gym.Env):
             is_value = True
             self._action_value = (action + 1) - 4
 
-        # On met à jour la grille
+        # Updating the grid
         self._action_filled_new_case = False
-        idx = self.grid[:, :, -1].astype(bool)
-        if (is_value and self.grid[idx, 0] > 0):
+        if (is_value and self.grid[row_idx, col_idx, 0] > 0):
             self._action_filled_new_case = True
-            self.grid[idx, self._action_value - 1] = 1
-            self.grid[idx, 0] = 0
+            self.grid[row_idx, col_idx, self._action_value] = 1
+            self.grid[row_idx, col_idx, 0] = 0
 
 
     def _compute_reward(self):
@@ -209,6 +210,8 @@ class SudokuEnv(gym.Env):
 
         if self.is_completed and not self.is_unvalid:
             reward += 100
+
+        self.cumulative_reward += reward
 
         self._action_reward = reward
         return reward
@@ -241,6 +244,7 @@ class SudokuEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.current_step = 0
+        self.cumulative_reward = 0
         self.is_completed = False
         self.grid = self._init_grid()
 
@@ -331,7 +335,13 @@ class SudokuEnv(gym.Env):
         police = pygame.font.Font(None, 36)
         texte = police.render(f"Step: {self.current_step}", True, RED)
         canvas.blit(
-            texte, (self.window_size // 2 - 35, self.window_size + 45)
+            texte, (self.window_size // 2 - 35, self.window_size + 24)
+        )
+        texte = police.render(
+            f"Filled: {self.cumulative_reward}/{self.empty_cases}", True, RED
+        )
+        canvas.blit(
+            texte, (self.window_size // 2 - 35, self.window_size + 55)
         )
 
         if self.is_unvalid:
