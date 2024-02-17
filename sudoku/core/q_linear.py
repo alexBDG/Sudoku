@@ -1,17 +1,10 @@
-
-# import sys
-# sys.path.insert(0, r"C:\Users\alspe\Documents\Python Scripts\sudoku\sudoku")
-
 # System imports.
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 tf.get_logger().setLevel('ERROR')
 
+# Package imports.
 from .deep_q_learning import DQN
-from .q_schedule import LinearSchedule
-from .q_schedule import LinearExploration
-
-from ..configs import settings
 
 
 
@@ -28,13 +21,12 @@ class Linear(DQN):
         """
         # this information might be useful
         state_shape = self.env.observation_space.shape
-#        state_shape = list(self.env.observation_space.shape)
 
         self.s = tf.placeholder(tf.uint8,
                                 shape=(None,
                                        state_shape[0],
                                        state_shape[1],
-                                       state_shape[2] * settings.state_history),
+                                       state_shape[2] * self.config.state_history),
                                 name="states")
         self.a = tf.placeholder(tf.int32,
                                 shape=(None),
@@ -46,7 +38,7 @@ class Linear(DQN):
                                  shape=(None,
                                         state_shape[0],
                                         state_shape[1],
-                                        state_shape[2] * settings.state_history),
+                                        state_shape[2] * self.config.state_history),
                                  name="next_states")
         self.done_mask = tf.placeholder(tf.bool,
                                         shape=(None),
@@ -62,25 +54,25 @@ class Linear(DQN):
 
         Args:
             state: (tf tensor) 
-            shape = (batch_size, img height, img width, nchannels x settings.state_history)
+            shape = (batch_size, img height, img width, nchannels x .state_history)
             scope: (string) scope name, that specifies if target network or not
             reuse: (bool) reuse of variables in the scope
 
         Returns:
             out: (tf tensor) of shape = (batch_size, num_actions)
         """
-        # this information might be useful
+        # Get output shape
         num_actions = self.env.action_space.shape
 
         with tf.variable_scope(scope, reuse=reuse):
             out = tf.layers.flatten(state,
                                     name='flatten')
             out = tf.layers.dense(out,
-                                  settings.DIM_DENSE_1,
+                                  self.config.DIM_DENSE_1,
                                   activation="relu",
                                   name='fc1')
             out = tf.layers.dense(out,
-                                  settings.DIM_DENSE_2,
+                                  self.config.DIM_DENSE_2,
                                   activation="relu",
                                   name='fc2')
             out = tf.layers.dense(out,
@@ -128,7 +120,7 @@ class Linear(DQN):
         num_actions = self.env.action_space.shape
 
         q_samp = self.r + (1.-tf.cast(self.done_mask, tf.float32)) * \
-                        settings.gamma * tf.reduce_max(target_q, axis=1)
+                        self.config.gamma * tf.reduce_max(target_q, axis=1)
         q_sum = tf.reduce_sum(q*tf.one_hot(self.a, num_actions), axis=1)
         self.loss = tf.reduce_mean((q_samp - q_sum)**2)
 
@@ -151,24 +143,3 @@ class Linear(DQN):
 
         self.train_op = optimizer.apply_gradients(list(zip(gradient, variable)))
         self.grad_norm = tf.global_norm(gradient)
-
-
-
-if __name__ == '__main__':
-    from utils.test_env import EnvTest
-
-    env = EnvTest((5, 5, 1))
-
-    # exploration strategy
-    exp_schedule = LinearExploration(
-        env, settings.eps_begin, settings.eps_end, settings.eps_nsteps
-    )
-
-    # learning rate schedule
-    lr_schedule  = LinearSchedule(
-        settings.lr_begin, settings.lr_end, settings.lr_nsteps
-    )
-
-    # train model
-    model = Linear(env, settings)
-    model.run(exp_schedule, lr_schedule)

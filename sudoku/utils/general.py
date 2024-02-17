@@ -139,8 +139,8 @@ class Summarize(object):
         axs[1].set_ylabel("Average Reward", color="tab:red")
         axs[1].set_xlabel("Steps")
         axs[1].tick_params(axis="y", labelcolor="tab:red")
-        axs[1].spines['left'].set_color('tab:red')
         ax1 = axs[1].twinx()
+        ax1.spines['left'].set_color('tab:red')
         ax1.scatter(
             self._idx_step[idx], self._step_loss[idx],
             c="tab:blue", s=5.
@@ -158,8 +158,8 @@ class Summarize(object):
         axs[2].set_ylabel("Epsilon", color="tab:red")
         axs[2].set_xlabel("Steps")
         axs[2].tick_params(axis='y', labelcolor="tab:red")
-        axs[2].spines['left'].set_color('tab:red')
         ax2 = axs[2].twinx()
+        ax2.spines['left'].set_color('tab:red')
         ax2.scatter(
             self._idx_step[idx], self._step_learning_rate[idx],
             c="tab:blue", s=5.
