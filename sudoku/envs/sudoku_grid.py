@@ -179,12 +179,12 @@ class SudokuEnv(gym.Env):
             self.grid[:, :, -1] = np.vstack([
                 self.grid[-1, :, -1], self.grid[:-1, :, -1]
             ])
-        elif action == 2 and col_idx > 0:
+        elif action == 2 and col_idx < 8:
             # Right
             self.grid[:, :, -1] = np.hstack([
                 self.grid[:, -1, -1].reshape(-1, 1), self.grid[:, :-1, -1]
             ])
-        elif action == 3 and col_idx < 8:
+        elif action == 3 and col_idx > 0:
             # Left
             self.grid[:, :, -1] = np.hstack([
                 self.grid[:, 1:, -1], self.grid[:, 0, -1].reshape(-1, 1)
