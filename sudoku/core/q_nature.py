@@ -32,33 +32,51 @@ class NatureQN(Linear):
         num_actions = self.env.action_space.shape
 
         with tf.variable_scope(scope, reuse=reuse):
-            # ( batch_size x 84 x 84 x 4 )
-            out = tf.layers.conv2d(state,
-                                   filters=32,
-                                   kernel_size=8,
-                                   strides=4,
-                                   padding="same",
-                                   activation="relu")
-            # ( batch_size x 19 x 19 x 32 )
+            # ( batch_size x 9 x 9 x 40 )
+            out_1 = tf.layers.conv2d(state,
+                                     filters=32,
+                                     kernel_size=(9, 1),
+                                     strides=2,
+                                     padding="same",
+                                     activation="relu")
+            # ( batch_size x 5 x 5 x 32 )
+
+            # ( batch_size x 9 x 9 x 40 )
+            out_2 = tf.layers.conv2d(state,
+                                     filters=32,
+                                     kernel_size=(1, 9),
+                                     strides=2,
+                                     padding="same",
+                                     activation="relu")
+            # ( batch_size x 5 x 5 x 32 )
+
+            # ( batch_size x 9 x 9 x 40 )
+            out_3 = tf.layers.conv2d(state,
+                                     filters=32,
+                                     kernel_size=(3, 3),
+                                     strides=2,
+                                     padding="same",
+                                     activation="relu")
+            # ( batch_size x 5 x 5 x 32 )
+
+            out = tf.concat([out_1, out_2, out_3], -1)
+
+            # ( batch_size x 5 x 5 x 96 )
             out = tf.layers.conv2d(out,
-                                   filters=64,
+                                   filters=128,
                                    kernel_size=4,
                                    strides=2,
                                    padding="same",
                                    activation="relu")
-            # ( batch_size x 8 x 8 x 64 )
-            out = tf.layers.conv2d(out,
-                                   filters=64,
-                                   kernel_size=3,
-                                   strides=1,
-                                   padding="same",
-                                   activation="relu")
-            # ( batch_size x 6 x 6 x 64 )
+            # ( batch_size x 3 x 3 x 128 )
+
             out = tf.layers.flatten(out)
-            # ( batch_size x 2304 )
+
+            # ( batch_size x 1152 )
             out = tf.layers.dense(out,
                                   512,
                                   activation="relu")
+
             # ( batch_size x 512 )
             out = tf.layers.dense(out,
                                   num_actions)

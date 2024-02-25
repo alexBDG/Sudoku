@@ -9,3 +9,6 @@ results/
 
 # Local settings
 local_settings.py
+
+# Test files
+test.py
