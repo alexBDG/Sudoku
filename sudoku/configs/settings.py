@@ -53,9 +53,6 @@ MAX_STEPS = 10000
 N_ACTIONS = 9 + 4
 OBS_SHAPE = (9, 9, 11)
 
-DIM_DENSE_1 = 64
-DIM_DENSE_2 = 64
-
 
 try:
     from .local_settings import *
