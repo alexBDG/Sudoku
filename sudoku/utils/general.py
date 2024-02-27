@@ -5,7 +5,9 @@ import numpy as np
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
-from matplotlib.ticker import LinearLocator
+from matplotlib.ticker import AutoLocator
+from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import MaxNLocator
 
 
 
@@ -63,6 +65,8 @@ class Summarize(object):
     def update_evaluation(self, n: int, reward: float) -> None:
         self.evaluation += n
         self.scores_eval.append(reward)
+        # Could be already defined by update_episode
+        self._idx_episode[self.step] = self.episode
         self._evaluation_reward[self.step] = reward
 
     def _step_to_episode(self) -> np.ndarray:
@@ -70,18 +74,19 @@ class Summarize(object):
         xp = np.arange(self._idx_episode.shape[0])[nan_mask]
         fp = self._idx_episode[nan_mask]
 
-        def get_episode(step: np.ndarray, xp: np.ndarray=xp,
+        def get_episode(step: float, pos: float=None, xp: np.ndarray=xp,
                         fp: np.ndarray=fp) -> np.ndarray:
-            episode = np.interp(step, xp, fp)
+            episode = f"{np.interp(step, xp, fp):.0f}"
             return episode
 
         return get_episode
 
     def _episode_to_step(self) -> np.ndarray:
-        nan_mask = ~np.isnan(self._idx_episode)
-        fp, xp = np.unique(self._idx_episode[nan_mask], return_index=True)
+        fp, xp = np.unique(self._idx_episode, return_index=True)
+        nan_mask = ~np.isnan(fp)
+        xp, fp = fp[nan_mask], xp[nan_mask]
 
-        def get_step(episode: np.ndarray, xp: np.ndarray=xp,
+        def get_step(episode: np.ndarray, pos: float=None, xp: np.ndarray=xp,
                      fp: np.ndarray=fp) -> np.ndarray:
             step = np.interp(episode, xp, fp)
             return step
@@ -110,11 +115,18 @@ class Summarize(object):
             color="tab:red", ls="-", marker="x", label="Evaluation", lw=3.
         )
 
-        # axs[0].set_xscale(
-        #     "function",
-        #     functions=(self._step_to_episode(), self._episode_to_step())
-        # )
-        # axs[0].margins(x=0.)
+        # Define x ticks location
+        x_ticks = AutoLocator().tick_values(
+            vmin=np.nanmin(self._idx_episode),
+            vmax=np.nanmax(self._idx_episode)
+        )
+        # change ticks episodes to steps
+        get_step_from_episode = self._episode_to_step()
+        x_ticks = [get_step_from_episode(tick) for tick in x_ticks]
+        axs[0].set_xticks(x_ticks)
+        # Apply a x formator from steps to episodes
+        get_episode_from_step = self._step_to_episode()
+        axs[0].xaxis.set_major_formatter(FuncFormatter(get_episode_from_step))
 
         # Filter only filled values
         idx = ~np.isnan(self._idx_step)
@@ -127,8 +139,8 @@ class Summarize(object):
         axs[1].set_ylabel("Average Reward", color="tab:red")
         axs[1].set_xlabel("Steps")
         axs[1].tick_params(axis="y", labelcolor="tab:red")
-        axs[1].spines['left'].set_color('tab:red')
         ax1 = axs[1].twinx()
+        ax1.spines['left'].set_color('tab:red')
         ax1.scatter(
             self._idx_step[idx], self._step_loss[idx],
             c="tab:blue", s=5.
@@ -137,7 +149,6 @@ class Summarize(object):
         ax1.spines['right'].set_color('tab:blue')
         ax1.set_ylabel("Loss", color="tab:blue")
         ax1.tick_params(axis="y", labelcolor="tab:blue")
-        # axs[1].margins(x=0.)
 
         # Epsilon/Learning rate
         axs[2].scatter(
@@ -147,8 +158,8 @@ class Summarize(object):
         axs[2].set_ylabel("Epsilon", color="tab:red")
         axs[2].set_xlabel("Steps")
         axs[2].tick_params(axis='y', labelcolor="tab:red")
-        axs[2].spines['left'].set_color('tab:red')
         ax2 = axs[2].twinx()
+        ax2.spines['left'].set_color('tab:red')
         ax2.scatter(
             self._idx_step[idx], self._step_learning_rate[idx],
             c="tab:blue", s=5.
@@ -156,7 +167,6 @@ class Summarize(object):
         ax2.spines['right'].set_color('tab:blue')
         ax2.set_ylabel("Learning Rate", color="tab:blue")
         ax2.tick_params(axis='y', labelcolor="tab:blue")
-        # axs[2].margins(x=0.)
 
         fig.savefig(self.file_path)
         plt.close(fig)

@@ -13,3 +13,8 @@ Random agent                           | Trained agent
 Learning steps:
 
 ![End](fig/summarize.png)
+
+
+Model description:
+
+![End](fig/model.png)

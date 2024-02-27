@@ -1,6 +1,6 @@
+# System imports.
 import numpy as np
 
-from ..utils.test_env import EnvTest
 
 
 class LinearSchedule(object):
@@ -65,48 +65,3 @@ class LinearExploration(LinearSchedule):
             return self.env.action_space.sample()
         else:
             return best_action
-
-
-
-def test1():
-    env = EnvTest((5, 5, 1))
-    exp_strat = LinearExploration(env, 1, 0, 10)
-    
-    found_diff = False
-    for i in range(10):
-        rnd_act = exp_strat.get_action(0)
-        if rnd_act != 0 and rnd_act is not None:
-            found_diff = True
-
-    assert found_diff, "Test 1 failed."
-    print("Test1: ok")
-
-
-def test2():
-    env = EnvTest((5, 5, 1))
-    exp_strat = LinearExploration(env, 1, 0, 10)
-    exp_strat.update(5)
-    assert exp_strat.epsilon == 0.5, "Test 2 failed"
-    print("Test2: ok")
-
-
-def test3():
-    env = EnvTest((5, 5, 1))
-    exp_strat = LinearExploration(env, 1, 0.5, 10)
-    exp_strat.update(20)
-    assert exp_strat.epsilon == 0.5, "Test 3 failed"
-    print("Test3: ok")
-
-
-def your_test():
-    """
-    Use this to implement your own tests if you'd like (not required)
-    """
-    pass
-
-
-if __name__ == "__main__":
-    test1()
-    test2()
-    test3()
-    your_test()
