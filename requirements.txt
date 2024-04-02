@@ -3,3 +3,4 @@ gymnasium==0.29.1
 pygame==2.5.2
 scikit-learn==1.4.0
 moviepy==1.0.3
+pandas==2.2.1

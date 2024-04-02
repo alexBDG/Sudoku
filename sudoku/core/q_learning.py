@@ -12,7 +12,6 @@ from ..utils.general import Summarize
 from ..utils.general import get_logger
 from ..utils.replay_buffer import ReplayBuffer
 from ..envs.sudoku_grid import SudokuEnv
-from ..configs.sudoku_samples import GRID
 
 
 
@@ -348,7 +347,7 @@ class QN(object):
         return avg_reward
 
 
-    def record(self, t=None):
+    def record(self, t=None, step_mode="train"):
         """
         Re create an env and record a video for one episode
 
@@ -356,7 +355,7 @@ class QN(object):
             t: (int) nths step
         """
 
-        env = SudokuEnv(GRID, render_mode="rgb_array")
+        env = SudokuEnv(render_mode="rgb_array", step_mode=step_mode)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
             env = gym.wrappers.RecordVideo(
@@ -380,7 +379,7 @@ class QN(object):
 
         # record one game at the beginning
         if self.config.record:
-            self.record(t="start")
+            self.record(t="start", step_mode="test")
             # Save as GIF
             video_name = os.path.join(
                 self.config.record_path, f"step-start-episode-0"
@@ -393,7 +392,7 @@ class QN(object):
 
         # record one game at the end
         if self.config.record:
-            self.record(t="end")
+            self.record(t="end", step_mode="test")
             # Save as GIF
             video_name = os.path.join(
                 self.config.record_path, f"step-end-episode-0"
