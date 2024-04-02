@@ -56,7 +56,7 @@ learning_start     = 50000
 MAX_STEPS = 10000
 
 N_ACTIONS = 9 + 4
-OBS_SHAPE = (9, 9, 11)
+OBS_SHAPE = (9, 9, 2)
 
 
 try:

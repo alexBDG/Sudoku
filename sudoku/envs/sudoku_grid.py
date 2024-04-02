@@ -58,49 +58,15 @@ class SudokuGenerator(object):
         # Transform the grid from str to 3d array
         grid = self.puzzle[self.n]
         grid = grid.replace(".", "0")
-        grid = np.array([tuple(map(int, grid[n*9:n*9+9])) for n in range(0,9)])
-        grid = np.concatenate([
-            np.expand_dims(grid, axis=0) == k for k in range(10)
-        ], axis=0).astype("float32")
-        grid = np.moveaxis(grid, 0, 2)
+        grid = np.array([tuple(map(int, grid[n*9:n*9+9])) for n in range(0, 9)])
+        grid = grid.astype("float32")
 
         # Transform the solution from str to 2d array
         solu = self.solution[self.n]
         solu = solu.replace(".", "0")
-        solu = np.array([tuple(map(int, solu[n*9:n*9+9])) for n in range(0,9)])
+        solu = np.array([tuple(map(int, solu[n*9:n*9+9])) for n in range(0, 9)])
         solu = solu.astype("float32")
         return grid, solu
-
-    def _extract_one_grid(self, line_grid):
-        # Transform the grid from str to 3d array
-        grid = line_grid.replace(".", "0")
-        grid = np.array([tuple(map(int, grid[n*9:n*9+9])) for n in range(0,9)])
-        grid = np.concatenate([
-            np.expand_dims(grid, axis=0) == k for k in range(10)
-        ], axis=0).astype("float32")
-        grid = np.moveaxis(grid, 0, 2)
-        return grid
-
-
-def grid_3d_to_2d(grid):
-    """
-    Transform one hot grid into 2d one.
-
-    Parameters
-    ----------
-    grid : ndarray
-        Input Sudoku one hot grid, shape of (n, n, n).
-
-    Returns
-    -------
-    grid : ndarray
-        Input Sudoku grid, shape of (n, n).
-    """
-    n = grid.shape[0]
-    factor = np.arange(1, n+1).reshape(1, 1, -1)
-    grid_3d = grid.astype(int)
-    grid_2d = np.sum(factor * grid_3d, axis=-1)
-    return grid_2d
 
 
 def check_grid_validity(grid):
@@ -228,11 +194,11 @@ class SudokuEnv(gym.Env):
 
         # Get the new grid
         grid, solu = next(self.grid_generator)
-        self.initial_grid = grid_3d_to_2d(grid[:, :, 1:])
+        self.initial_grid = grid
         self.solution_grid = solu
-        self.empty_cases = np.sum(grid[:, :, 0] > 0)
+        self.empty_cases = np.sum(grid <= 0)
 
-        self.grid = np.concatenate([grid, idx], axis=-1)
+        self.grid = np.concatenate([np.expand_dims(grid, axis=2), idx], axis=-1)
 
 
     def _next_observation(self):
@@ -276,10 +242,9 @@ class SudokuEnv(gym.Env):
 
         # Updating the grid
         self._action_filled_new_case = False
-        if (is_value and self.grid[row_idx, col_idx, 0] > 0):
+        if (is_value and self.grid[row_idx, col_idx, 0] <= 0):
             self._action_filled_new_case = True
-            self.grid[row_idx, col_idx, self._action_value] = 1
-            self.grid[row_idx, col_idx, 0] = 0
+            self.grid[row_idx, col_idx, 0] = self._action_value
 
 
     def _compute_reward(self):
@@ -303,7 +268,7 @@ class SudokuEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
-        self.is_completed = np.sum(self.grid[:, :, 0]) < 1
+        self.is_completed = np.sum(self.grid[:, :, 0] <= 0) < 1
 
         self.is_unvalid = False
         if self._action_filled_new_case:
@@ -398,32 +363,32 @@ class SudokuEnv(gym.Env):
         pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 4)
 
         # Filling digit
-        grid = grid_3d_to_2d(self.grid[:, :, 1:-1])
+        grid = self.grid[:, :, 0]
         police = pygame.font.Font(None, 36)
         for i in range(9):
             for j in range(9):
                 if self.initial_grid[i][j] > 0:
-                    texte = police.render(
-                        str(self.initial_grid[i][j]), True, BLACK
+                    text = police.render(
+                        f"{self.initial_grid[i][j]:.0f}", True, BLACK
                     )
                 elif grid[i][j] > 0:
-                    texte = police.render(str(grid[i][j]), True, GREY)
+                    text = police.render(f"{grid[i][j]:.0f}", True, GREY)
                 if self.initial_grid[i][j] + grid[i][j] > 0:
                     canvas.blit(
-                        texte, (j * case_width + 20, i * case_width + 15)
+                        text, (j * case_width + 20, i * case_width + 15)
                     )
 
         # Step counter
         police = pygame.font.Font(None, 36)
-        texte = police.render(f"Step: {self.current_step}", True, RED)
+        text = police.render(f"Step: {self.current_step}", True, RED)
         canvas.blit(
-            texte, (self.window_size // 2 - 35, self.window_size + 24)
+            text, (self.window_size // 2 - 35, self.window_size + 24)
         )
-        texte = police.render(
+        text = police.render(
             f"Filled: {self.cumulative_reward}/{self.empty_cases}", True, RED
         )
         canvas.blit(
-            texte, (self.window_size // 2 - 35, self.window_size + 55)
+            text, (self.window_size // 2 - 35, self.window_size + 55)
         )
 
         if self.is_unvalid:

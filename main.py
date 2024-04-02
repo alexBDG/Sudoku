@@ -22,6 +22,5 @@ if __name__ == "__main__":
     )
 
     # train model
-    # model = Linear(env, settings)
     model = NatureQN(env, settings)
     model.run(exp_schedule, lr_schedule)
