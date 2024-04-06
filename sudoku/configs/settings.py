@@ -36,24 +36,24 @@ soft_epsilon      = 0.05
 
 # hyper params
 nsteps_train       = 5000000
-batch_size         = 128
+batch_size         = 16  # 128
 buffer_size        = 500000
 target_update_freq = 10000
 gamma              = 0.99
 learning_freq      = 4
 state_history      = 4
 skip_frame         = 4
-lr_begin           = 0.00025
+lr_begin           = 0.025  # 0.00025
 lr_end             = 0.00005
 lr_nsteps          = nsteps_train/2
 eps_begin          = 1
 eps_end            = 0.1
-eps_nsteps         = 1000000
+eps_nsteps         = 2000000
 learning_start     = 50000
 
 
 # Environment settings
-MAX_STEPS = 10000
+MAX_STEPS = 500  # 10000
 
 N_ACTIONS = 9 + 4
 OBS_SHAPE = (9, 9, 2)

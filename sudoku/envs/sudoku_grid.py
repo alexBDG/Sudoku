@@ -162,6 +162,7 @@ class SudokuEnv(gym.Env):
         self.initial_grid = None
         self.initial_solu = None
         self.empty_cases = None
+        self.unfilled_cases = None
 
         # Initiate the grid generator
         self.grid_generator = SudokuGenerator(step_mode)
@@ -196,13 +197,15 @@ class SudokuEnv(gym.Env):
         grid, solu = next(self.grid_generator)
         self.initial_grid = grid
         self.solution_grid = solu
-        self.empty_cases = np.sum(grid <= 0)
+        self.empty_cases = self.unfilled_cases = np.sum(grid <= 0)
 
         self.grid = np.concatenate([np.expand_dims(grid, axis=2), idx], axis=-1)
 
 
     def _next_observation(self):
-        return self.grid
+        # Max normalization
+        obs = self.grid / 9.
+        return obs
 
 
     def _take_action(self, action):
@@ -241,17 +244,27 @@ class SudokuEnv(gym.Env):
             self._action_value = (action + 1) - 4
 
         # Updating the grid
+        self.is_unvalid = False
         self._action_filled_new_case = False
         if (is_value and self.grid[row_idx, col_idx, 0] <= 0):
             self._action_filled_new_case = True
-            self.grid[row_idx, col_idx, 0] = self._action_value
+
+            # Check validity
+            self.is_unvalid = (
+                self.solution_grid[row_idx, col_idx] != self._action_value
+            )
+            if not self.is_unvalid:
+                self.grid[row_idx, col_idx, 0] = self._action_value
 
 
     def _compute_reward(self):
         reward = 0
 
         # Bonus for new cases
-        if self._action_filled_new_case and not self.is_unvalid:
+        if self.is_unvalid:
+            reward -= 1
+        # Malus for bad value
+        elif self._action_filled_new_case:
             reward += 1
 
         if self.is_completed and not self.is_unvalid:
@@ -268,19 +281,12 @@ class SudokuEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
-        self.is_completed = np.sum(self.grid[:, :, 0] <= 0) < 1
-
-        self.is_unvalid = False
-        if self._action_filled_new_case:
-            # Get current row/col indexes
-            row_idx = np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)]
-            col_idx = np.arange(9)[self.grid[:, :, -1].sum(0).astype(bool)]
-            self.is_unvalid = self.solution_grid[row_idx, col_idx] != self._action_value
+        self.unfilled_cases = np.sum(self.grid[:, :, 0] <= 0)
+        self.is_completed = self.unfilled_cases < 1
 
         terminated = (
             self.is_completed or
-            self.current_step == settings.MAX_STEPS or
-            self.is_unvalid
+            self.current_step == settings.MAX_STEPS
         )
         reward = self._compute_reward()
         obs = self._next_observation()
@@ -382,13 +388,20 @@ class SudokuEnv(gym.Env):
         police = pygame.font.Font(None, 36)
         text = police.render(f"Step: {self.current_step}", True, RED)
         canvas.blit(
-            text, (self.window_size // 2 - 35, self.window_size + 24)
+            text, (self.window_size // 2 - 35, self.window_size + 15)
         )
         text = police.render(
-            f"Filled: {self.cumulative_reward}/{self.empty_cases}", True, RED
+            (
+                f"Filled: {self.empty_cases - self.unfilled_cases}/"
+                f"{self.empty_cases}"
+            ), True, RED
         )
         canvas.blit(
-            text, (self.window_size // 2 - 35, self.window_size + 55)
+            text, (self.window_size // 2 - 35, self.window_size + 45)
+        )
+        text = police.render(f"Reward: {self.cumulative_reward}", True, RED)
+        canvas.blit(
+            text, (self.window_size // 2 - 35, self.window_size + 75)
         )
 
         if self.is_unvalid:
@@ -402,13 +415,15 @@ class SudokuEnv(gym.Env):
             )
 
         if self.render_mode == "human":
-            # The following line copies our drawings from `canvas` to the visible window
+            # The following line copies our drawings from `canvas` to the
+            # visible window
             self.window.blit(canvas, canvas.get_rect())
             pygame.event.pump()
             pygame.display.update()
 
-            # We need to ensure that human-rendering occurs at the predefined framerate.
-            # The following line will automatically add a delay to keep the framerate stable.
+            # We need to ensure that human-rendering occurs at the predefined
+            # framerate. The following line will automatically add a delay to
+            # keep the framerate stable.
             self.clock.tick(self.metadata["render_fps"])
 
         elif self.render_mode == "rgb_array":
