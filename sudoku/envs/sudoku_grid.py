@@ -292,6 +292,10 @@ class SudokuEnv(gym.Env):
         if not self.is_value:
             reward =- 1
 
+        # If time out
+        if self.current_step == settings.MAX_STEPS:
+            reward -= 1000
+
         self.cumulative_reward += reward
 
         self._action_reward = reward
