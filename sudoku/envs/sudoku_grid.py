@@ -154,8 +154,11 @@ class SudokuEnv(gym.Env):
     def __init__(self, render_mode="human", step_mode="train",
                  dtype=np.float32):
         self.cumulative_reward = None
-        self.is_completed = None
-        self.is_unvalid = False
+        self.is_completed = False
+        self.is_valid = False
+        self.is_exact = False
+        self.is_empty = False
+        self.is_value = False
         self.dtype = dtype
         self.window_size = 513  # The size of the PyGame window
         self.grid = None
@@ -213,7 +216,7 @@ class SudokuEnv(gym.Env):
         # Get action's informations
         self._action = action
         self._action_value = None
-        is_value = False
+        self.is_value = False
 
         # Get current row/col indexes
         row_idx = np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)]
@@ -241,35 +244,53 @@ class SudokuEnv(gym.Env):
                 self.grid[:, 1:, -1], self.grid[:, 0, -1].reshape(-1, 1)
             ])
         elif action >= 4:
-            is_value = True
+            self.is_value = True
             self._action_value = (action + 1) - 4
 
         # Updating the grid
-        self.is_unvalid = False
+        self.is_valid = False
+        self.is_exact = False
+        self.is_empty = self.is_value and self.grid[row_idx, col_idx, 0] <= 0
         self._action_filled_new_case = False
-        if (is_value and self.grid[row_idx, col_idx, 0] <= 0):
+        if self.is_empty:
             self._action_filled_new_case = True
 
             # Check validity
-            self.is_unvalid = (
-                self.solution_grid[row_idx, col_idx] != self._action_value
+            tmp_grid = self.grid[:, :, 0].copy()
+            tmp_grid[row_idx, col_idx] = self._action_value
+            self.is_valid = check_grid_validity(tmp_grid)
+            self.is_exact = (
+                self.solution_grid[row_idx, col_idx] == self._action_value
             )
-            if not self.is_unvalid:
+
+            if self.is_exact:
                 self.grid[row_idx, col_idx, 0] = self._action_value
 
 
     def _compute_reward(self):
         reward = 0
 
-        # Bonus for new cases
-        if self.is_unvalid:
-            reward -= 1
-        # Malus for bad value
-        elif self._action_filled_new_case:
-            reward += 1
+        # If the perfect grid is found
+        if self.is_completed:
+            reward += 1000
 
-        if self.is_completed and not self.is_unvalid:
+        # If a correct value is found
+        if self.is_exact:
             reward += 100
+        # If an incorrect value is found but is correct
+        elif not self.is_valid:
+            reward -= 100
+        # If an incorrect value is found and is not correct
+        elif self.is_valid:
+            reward -= 10
+
+        # If the case was already filled
+        if not self.is_empty:
+            reward -= 10
+
+        # For all movements
+        if not self.is_value:
+            reward =- 1
 
         self.cumulative_reward += reward
 
@@ -419,7 +440,7 @@ class SudokuEnv(gym.Env):
             text, (self.window_size // 2 - 35, self.window_size + 75)
         )
 
-        if self.is_unvalid:
+        if not self.is_valid:
             draw_warning(
                 canvas, self.window_size // 4, self.window_size + 45,
                 radius=25
