@@ -53,10 +53,10 @@ learning_start     = 50000
 
 
 # Environment settings
-MAX_STEPS = 500  # 10000
+MAX_STEPS = 1000  # 10000
 
-N_ACTIONS = 9 + 4
-OBS_SHAPE = (9, 9, 2)
+N_ACTIONS = 9 * 9 * 9
+OBS_SHAPE = (9, 9, 1)
 
 
 try:

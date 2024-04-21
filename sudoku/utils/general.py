@@ -39,6 +39,7 @@ class Summarize(object):
         self._step_reward = empty_array.copy()
         self._step_epsilon = empty_array.copy()
         self._step_learning_rate = empty_array.copy()
+        self._step_action = empty_array.copy()
         # Episodes
         self.episode = 0
         self._idx_episode = empty_array.copy()
@@ -49,13 +50,15 @@ class Summarize(object):
         self._evaluation_reward = empty_array.copy()
 
     def update_step(self, n: int, reward: float, loss: float,
-                    learning_rate: float, epsilon: float) -> None:
+                    learning_rate: float, epsilon: float,
+                    action: float) -> None:
         self.step += n
         self._idx_step[self.step] = self.step
         self._step_loss[self.step] = loss
         self._step_reward[self.step] = reward
         self._step_epsilon[self.step] = epsilon
         self._step_learning_rate[self.step] = learning_rate
+        self._step_action[self.step] = action
 
     def update_episode(self, n: int, reward: float) -> None:
         self.episode += n
@@ -95,7 +98,7 @@ class Summarize(object):
 
     def plot(self) -> None:
         fig, axs = plt.subplots(
-            3, 1, constrained_layout=True, figsize=(2*6.8, 2*4.6)
+            6, 1, constrained_layout=True, figsize=(3*6.8, 3*4.6)
         )
 
         # Episodes
@@ -167,6 +170,30 @@ class Summarize(object):
         ax2.spines['right'].set_color('tab:blue')
         ax2.set_ylabel("Learning Rate", color="tab:blue")
         ax2.tick_params(axis='y', labelcolor="tab:blue")
+
+        # Action
+        axs[3].scatter(
+            self._idx_step[idx],
+            np.floor(self._step_action[idx] / (9 * 9)).astype(np.int8),
+            c="tab:red", s=3.
+        )
+        axs[3].set_ylabel("Row index")
+        axs[3].set_xlabel("Steps")
+
+        axs[4].scatter(
+            self._idx_step[idx],
+            np.floor(self._step_action[idx] % (9 * 9) / 9).astype(np.int8),
+            c="tab:orange", s=3.,
+        )
+        axs[4].set_ylabel("Col index")
+        axs[4].set_xlabel("Steps")
+
+        axs[5].scatter(
+            self._idx_step[idx], self._step_action[idx] % 9 + 1,
+            c="tab:blue", s=2.,
+        )
+        axs[5].set_ylabel("Value index")
+        axs[5].set_xlabel("Steps")
 
         fig.savefig(self.file_path)
         plt.close(fig)

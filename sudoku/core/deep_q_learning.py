@@ -149,9 +149,9 @@ class DQN(QN):
 
         # logging
         self.merged = tf.summary.merge_all()
-        self.file_writer = tf.summary.FileWriter(
-            self.config.output_path,  self.sess.graph
-        )
+        # self.file_writer = tf.summary.FileWriter(
+        #     self.config.output_path,  self.sess.graph
+        # )
 
 
     def save(self):
@@ -218,8 +218,8 @@ class DQN(QN):
             feed_dict=fd
         )
 
-        # tensorboard stuff
-        self.file_writer.add_summary(summary, t)
+        # # tensorboard stuff
+        # self.file_writer.add_summary(summary, t)
 
         return loss_eval, grad_norm_eval
 

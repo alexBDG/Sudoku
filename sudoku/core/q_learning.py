@@ -211,6 +211,7 @@ class QN(object):
                     loss=loss_eval,
                     learning_rate=lr_schedule.epsilon,
                     epsilon=exp_schedule.epsilon,
+                    action=action,
                 )
                 if ((t > self.config.learning_start) and (t % self.config.log_freq == 0) and
                    (t % self.config.learning_freq == 0)):

@@ -163,13 +163,16 @@ class SudokuEnv(gym.Env):
         self.initial_solu = None
         self.empty_cases = None
         self.unfilled_cases = None
+        self.step_mode = step_mode
 
         # Initiate the grid generator
-        self.grid_generator = SudokuGenerator(step_mode)
+        self.grid_generator = SudokuGenerator(self.step_mode)
 
         # Actions
         self.action_space = Discrete(settings.N_ACTIONS)
         self._action_value = None
+        self._action_row_idx = None
+        self._action_col_idx = None
         self._action_filled_new_case = None
 
         # Contient les valeurs de paramètres des cinq précédentes estimations
@@ -185,26 +188,18 @@ class SudokuEnv(gym.Env):
 
 
     def _init_grid(self):
-        # Create a grid for index, filled with 0 and 1 (1 is for the cursor
-        # position)
-        idx_shape = settings.OBS_SHAPE[:-1] + (1,)
-        idx = np.zeros(idx_shape, dtype=self.dtype).flatten()
-        idx[0] = 1
-        np.random.shuffle(idx)
-        idx = idx.reshape(idx_shape)
-
         # Get the new grid
         grid, solu = next(self.grid_generator)
+        self.grid = grid.copy()
         self.initial_grid = grid
         self.solution_grid = solu
         self.empty_cases = self.unfilled_cases = np.sum(grid <= 0)
 
-        self.grid = np.concatenate([np.expand_dims(grid, axis=2), idx], axis=-1)
-
 
     def _next_observation(self):
+        obs = np.expand_dims(self.grid, axis=2)
         # Max normalization
-        obs = self.grid / 9.
+        obs = obs / 9.
         return obs
 
 
@@ -212,60 +207,45 @@ class SudokuEnv(gym.Env):
         # Get action's informations
         self._action = action
         self._action_value = None
-        is_value = False
 
         # Get current row/col indexes
-        row_idx = np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)]
-        col_idx = np.arange(9)[self.grid[:, :, -1].sum(0).astype(bool)]
-
-        # Apply cursor changing or value setting
-        if action == 0 and row_idx > 0:
-            # Up
-            self.grid[:, :, -1] = np.vstack([
-                self.grid[1:, :, -1], self.grid[0, :, -1]
-            ])
-        elif action == 1 and row_idx < 8:
-            # Down
-            self.grid[:, :, -1] = np.vstack([
-                self.grid[-1, :, -1], self.grid[:-1, :, -1]
-            ])
-        elif action == 2 and col_idx < 8:
-            # Right
-            self.grid[:, :, -1] = np.hstack([
-                self.grid[:, -1, -1].reshape(-1, 1), self.grid[:, :-1, -1]
-            ])
-        elif action == 3 and col_idx > 0:
-            # Left
-            self.grid[:, :, -1] = np.hstack([
-                self.grid[:, 1:, -1], self.grid[:, 0, -1].reshape(-1, 1)
-            ])
-        elif action >= 4:
-            is_value = True
-            self._action_value = (action + 1) - 4
+        self._action_row_idx = np.floor(self._action / (9 * 9)).astype(np.int8)
+        self._action_col_idx = np.floor(self._action % (9 * 9) / 9).astype(np.int8)
+        self._action_value = action % 9 + 1
+        row_idx = self._action_row_idx
+        col_idx = self._action_col_idx
 
         # Updating the grid
         self.is_unvalid = False
         self._action_filled_new_case = False
-        if (is_value and self.grid[row_idx, col_idx, 0] <= 0):
+        if self.grid[row_idx, col_idx] <= 0:
             self._action_filled_new_case = True
 
             # Check validity
-            self.is_unvalid = (
-                self.solution_grid[row_idx, col_idx] != self._action_value
-            )
+            if True:#self.step_mode == "train":
+                self.is_unvalid = (
+                    self.solution_grid[row_idx, col_idx] != self._action_value
+                )
+            else:
+                tmp_grid = self.grid.copy()
+                tmp_grid[row_idx, col_idx] = self._action_value
+                self.is_unvalid = not check_grid_validity(tmp_grid)
+
             if not self.is_unvalid:
-                self.grid[row_idx, col_idx, 0] = self._action_value
+                self.grid[row_idx, col_idx] = self._action_value
 
 
     def _compute_reward(self):
         reward = 0
 
-        # Bonus for new cases
+        # Malus for bad value
         if self.is_unvalid:
             reward -= 1
-        # Malus for bad value
+        # Bonus for new cases
         elif self._action_filled_new_case:
             reward += 1
+        else:
+            reward -= 1
 
         if self.is_completed and not self.is_unvalid:
             reward += 100
@@ -281,12 +261,13 @@ class SudokuEnv(gym.Env):
         self._take_action(action)
 
         self.current_step += 1
-        self.unfilled_cases = np.sum(self.grid[:, :, 0] <= 0)
+        self.unfilled_cases = np.sum(self.grid <= 0)
         self.is_completed = self.unfilled_cases < 1
 
         terminated = (
             self.is_completed or
-            self.current_step == settings.MAX_STEPS
+            self.current_step == settings.MAX_STEPS or
+            self.is_unvalid
         )
         reward = self._compute_reward()
         obs = self._next_observation()
@@ -357,32 +338,46 @@ class SudokuEnv(gym.Env):
         )
 
         # Local cursor
-        row_idx = int(np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)])
-        col_idx = int(np.arange(9)[self.grid[:, :, -1].sum(0).astype(bool)])
-        x_i = col_idx * case_width + 2
-        y_i = row_idx * case_width + 2
-        x_i1 = (col_idx + 1) * case_width - 4
-        y_i1 = (row_idx + 1) * case_width - 4
-        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i, y_i1), 4)
-        pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 4)
-        pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 4)
-        pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 4)
+        if self._action_row_idx is not None or self._action_col_idx is not None:
+            row_idx = self._action_row_idx
+            col_idx = self._action_col_idx
+            x_i = col_idx * case_width + 2
+            y_i = row_idx * case_width + 2
+            x_i1 = (col_idx + 1) * case_width - 4
+            y_i1 = (row_idx + 1) * case_width - 4
+            pygame.draw.line(canvas, RED, (x_i, y_i), (x_i, y_i1), 4)
+            pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 4)
+            pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 4)
+            pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 4)
+
+            police = pygame.font.Font(None, 14)
+            text = police.render(f"{self._action_value:.0f}", True, GREY)
+            canvas.blit(
+                text, (col_idx * case_width + 10, (row_idx + 1) * case_width - 15)
+            )
 
         # Filling digit
-        grid = self.grid[:, :, 0]
         police = pygame.font.Font(None, 36)
+        police_solution = pygame.font.Font(None, 14)
         for i in range(9):
             for j in range(9):
                 if self.initial_grid[i][j] > 0:
                     text = police.render(
                         f"{self.initial_grid[i][j]:.0f}", True, BLACK
                     )
-                elif grid[i][j] > 0:
-                    text = police.render(f"{grid[i][j]:.0f}", True, GREY)
-                if self.initial_grid[i][j] + grid[i][j] > 0:
+                elif self.grid[i][j] > 0:
+                    text = police.render(f"{self.grid[i][j]:.0f}", True, GREY)
+                if self.initial_grid[i][j] + self.grid[i][j] > 0:
                     canvas.blit(
                         text, (j * case_width + 20, i * case_width + 15)
                     )
+
+                text = police_solution.render(
+                    f"{self.solution_grid[i][j]:.0f}", True, RED
+                )
+                canvas.blit(
+                    text, (j * case_width + 10, i * case_width + 10)
+                )
 
         # Step counter
         police = pygame.font.Font(None, 36)
