@@ -163,9 +163,10 @@ class SudokuEnv(gym.Env):
         self.initial_solu = None
         self.empty_cases = None
         self.unfilled_cases = None
+        self.step_mode = step_mode
 
         # Initiate the grid generator
-        self.grid_generator = SudokuGenerator(step_mode)
+        self.grid_generator = SudokuGenerator(self.step_mode)
 
         # Actions
         self.action_space = Discrete(settings.N_ACTIONS)
@@ -367,10 +368,17 @@ class SudokuEnv(gym.Env):
         pygame.draw.line(canvas, RED, (x_i1, y_i), (x_i1, y_i1), 4)
         pygame.draw.line(canvas, RED, (x_i, y_i), (x_i1, y_i), 4)
         pygame.draw.line(canvas, RED, (x_i, y_i1), (x_i1, y_i1), 4)
+        if self._action_value is not None:
+            police = pygame.font.Font(None, 14)
+            text = police.render(f"{self._action_value:.0f}", True, GREY)
+            canvas.blit(
+                text, (col_idx * case_width + 10, (row_idx + 1) * case_width - 15)
+            )
 
         # Filling digit
         grid = self.grid[:, :, 0]
         police = pygame.font.Font(None, 36)
+        police_solution = pygame.font.Font(None, 14)
         for i in range(9):
             for j in range(9):
                 if self.initial_grid[i][j] > 0:
@@ -383,6 +391,13 @@ class SudokuEnv(gym.Env):
                     canvas.blit(
                         text, (j * case_width + 20, i * case_width + 15)
                     )
+
+                text = police_solution.render(
+                    f"{self.solution_grid[i][j]:.0f}", True, RED
+                )
+                canvas.blit(
+                    text, (j * case_width + 10, i * case_width + 10)
+                )
 
         # Step counter
         police = pygame.font.Font(None, 36)
