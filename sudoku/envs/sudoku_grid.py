@@ -3,6 +3,7 @@ import pygame
 import numpy as np
 import pandas as pd
 import gymnasium as gym
+import pygame_chart as pyc
 
 # Local imports.
 from ..configs import settings
@@ -42,8 +43,8 @@ class SudokuGenerator(object):
         self.solution = df["solution"]
         # self.clues = df["clues"]
 
-        # Index
-        self.n = 0
+        # Index - first one for test only
+        self.n = 0 if self.step_mode == "test" else 1
         self.n_max = self.puzzle.shape[0]
 
     def __iter__(self):
@@ -55,7 +56,7 @@ class SudokuGenerator(object):
         if self.step_mode == "train":
             self.n += 1
 
-        # Transform the grid from str to 3d array
+        # Transform the grid from str to 2d array
         grid = self.puzzle[self.n]
         grid = grid.replace(".", "0")
         grid = np.array([tuple(map(int, grid[n*9:n*9+9])) for n in range(0, 9)])
@@ -153,6 +154,7 @@ class SudokuEnv(gym.Env):
 
     def __init__(self, render_mode="human", step_mode="train",
                  dtype=np.float32):
+        self.all_rewards = []
         self.cumulative_reward = None
         self.is_completed = False
         self.is_valid = False
@@ -297,6 +299,7 @@ class SudokuEnv(gym.Env):
             reward -= 1000
 
         self.cumulative_reward += reward
+        self.all_rewards.append(reward)
 
         self._action_reward = reward
         return reward
@@ -353,7 +356,7 @@ class SudokuEnv(gym.Env):
             pygame.init()
             pygame.display.init()
             self.window = pygame.display.set_mode(
-                (self.window_size, self.window_size + 100)
+                (2 * self.window_size, self.window_size + 100)
             )
         pygame.font.init()
         if self.clock is None and self.render_mode == "human":
@@ -361,7 +364,7 @@ class SudokuEnv(gym.Env):
 
         case_width = self.window_size // 9
 
-        canvas = pygame.Surface((self.window_size, self.window_size + 100))
+        canvas = pygame.Surface((2 * self.window_size, self.window_size + 100))
         canvas.fill(WHITE)
         for i in range(1, 9):
             # Horizontal lines
@@ -380,6 +383,10 @@ class SudokuEnv(gym.Env):
         pygame.draw.line(
             canvas, BLACK,
             (0, self.window_size), (self.window_size, self.window_size), 2
+        )
+        pygame.draw.line(
+            canvas, BLACK,
+            (self.window_size, 0), (self.window_size, self.window_size), 2
         )
 
         # Local cursor
@@ -453,6 +460,35 @@ class SudokuEnv(gym.Env):
                 canvas, self.window_size // 4 * 3, self.window_size + 45,
                 radius=25
             )
+
+        # Add chart
+        n = len(self.all_rewards)
+        if n > 1:
+            figure = pyc.Figure(
+                canvas,
+                self.window_size+25, 25,
+                self.window_size-50, self.window_size-50,
+                bg_color=WHITE
+            )
+            figure.add_title("Reward evolution")
+            figure.add_legend()
+            figure.add_xaxis_label("Steps")
+            figure.add_yaxis_label("Reward (log10)")
+            x = np.arange(n).tolist()
+            y = np.array(self.all_rewards)
+            sign_y = y / np.abs(y)
+            figure.scatter(
+                "Step Reward",
+                x, (np.log10(y * sign_y) * sign_y).tolist(),
+            )
+            y = np.cumsum(self.all_rewards)
+            sign_y = y / np.abs(y)
+            figure.line(
+                "Cumulative Reward",
+                x, (np.log10(y * sign_y) * sign_y).tolist(),
+            )
+            figure.draw()
+            canvas.blit(figure.background, (self.window_size+25, 25))
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the

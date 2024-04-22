@@ -252,7 +252,7 @@ class QN(object):
             if (t > self.config.learning_start) and self.config.record and (last_record > self.config.record_freq):
                 self.logger.info("Recording...")
                 last_record = 0
-                self.record(t=t)
+                self.record(t=t, step_mode="test")
                 summarize.plot()
 
         # last words

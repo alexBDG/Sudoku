@@ -4,3 +4,5 @@ pygame==2.5.2
 scikit-learn==1.4.0
 moviepy==1.0.3
 pandas==2.2.1
+matplotlib==3.8.2
+pygame-chart==1.0.0

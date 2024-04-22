@@ -28,10 +28,10 @@ record_path = os.path.join(output_path, "records")
 num_episodes_test = 50
 grad_clip         = True
 clip_val          = 10
-saving_freq       = 500000
+saving_freq       = 50000000
 log_freq          = 50
-eval_freq         = 500000
-record_freq       = 500000
+eval_freq         = 50000000
+record_freq       = 50000000
 soft_epsilon      = 0.05
 
 # hyper params
@@ -53,7 +53,7 @@ learning_start     = 50000
 
 
 # Environment settings
-MAX_STEPS = 500  # 10000
+MAX_STEPS = 10000
 
 N_ACTIONS = 9 + 4
 OBS_SHAPE = (9, 9, 2)
