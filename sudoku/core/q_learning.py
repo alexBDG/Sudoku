@@ -11,7 +11,6 @@ from moviepy.editor import VideoFileClip
 from ..utils.general import Summarize
 from ..utils.general import get_logger
 from ..utils.replay_buffer import ReplayBuffer
-from ..envs.sudoku_grid import SudokuEnv
 
 
 
@@ -355,7 +354,9 @@ class QN(object):
             t: (int) nths step
         """
 
-        env = SudokuEnv(render_mode="rgb_array", step_mode=step_mode)
+        # Define a new instance of the same environment
+        env = self.env.__class__(render_mode="rgb_array", step_mode=step_mode)
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
             env = gym.wrappers.RecordVideo(

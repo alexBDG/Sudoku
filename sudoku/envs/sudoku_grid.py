@@ -1,4 +1,5 @@
 # System imports.
+import os
 import pygame
 import numpy as np
 import pandas as pd
@@ -6,7 +7,17 @@ import gymnasium as gym
 import pygame_chart as pyc
 
 # Local imports.
-from ..configs import settings
+try:
+    from ..configs.settings import MAX_STEPS
+    from ..configs.settings import sudoku_path
+    from ..configs.settings import min_difficulty
+except ImportError:
+    MAX_STEPS = 1000
+    sudoku_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "configs", "data", "sudoku-3m.csv"
+    )
+    min_difficulty = 0.
 
 # Set seed
 np.random.seed(0)
@@ -15,6 +26,10 @@ BLACK = (0, 0, 0)
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
+
+# Environment variables
+N_ACTIONS = 9 + 4
+OBS_SHAPE = (9, 9, 2)
 
 
 
@@ -32,10 +47,10 @@ class SudokuGenerator(object):
         # Either `"train"` or `"test"`
         self.step_mode = step_mode
         # Load data
-        df = pd.read_csv(settings.sudoku_path)
+        df = pd.read_csv(sudoku_path)
 
         # Filter by difficulty
-        df = df[df["difficulty"] <= settings.min_difficulty]
+        df = df[df["difficulty"] <= min_difficulty]
         df.reset_index(drop=True, inplace=True)
 
         # Filter low difficulty grid
@@ -174,13 +189,13 @@ class SudokuEnv(gym.Env):
         self.grid_generator = SudokuGenerator(self.step_mode)
 
         # Actions
-        self.action_space = Discrete(settings.N_ACTIONS)
+        self.action_space = Discrete(N_ACTIONS)
         self._action_value = None
         self._action_filled_new_case = None
 
-        # Contient les valeurs de paramètres des cinq précédentes estimations
+        # Observations
         self.observation_space = Box(
-            low=1, high=9, shape=settings.OBS_SHAPE, dtype=self.dtype
+            low=1, high=9, shape=OBS_SHAPE, dtype=self.dtype
         )
 
         self.render_mode = render_mode
@@ -193,7 +208,7 @@ class SudokuEnv(gym.Env):
     def _init_grid(self):
         # Create a grid for index, filled with 0 and 1 (1 is for the cursor
         # position)
-        idx_shape = settings.OBS_SHAPE[:-1] + (1,)
+        idx_shape = OBS_SHAPE[:-1] + (1,)
         idx = np.zeros(idx_shape, dtype=self.dtype).flatten()
         idx[0] = 1
         np.random.shuffle(idx)
@@ -265,26 +280,29 @@ class SudokuEnv(gym.Env):
                 self.solution_grid[row_idx, col_idx] == self._action_value
             )
 
-            if self.is_exact:
+            if self.is_valid:
                 self.grid[row_idx, col_idx, 0] = self._action_value
 
 
-    def _compute_reward(self):
+    def _compute_reward(self, terminated):
         reward = 0
 
         # If the perfect grid is found
-        if self.is_completed:
+        if terminated and self.is_completed:
             reward += 1000
+        # If time out
+        elif terminated:
+            reward -= 1000
 
         # If a correct value is found
         if self.is_exact:
             reward += 100
-        # If an incorrect value is found but is correct
+        # If an incorrect value is found and is not correct
         elif not self.is_valid:
             reward -= 100
-        # If an incorrect value is found and is not correct
+        # If an incorrect value is found but is correct
         elif self.is_valid:
-            reward -= 10
+            reward += 10
 
         # If the case was already filled
         if not self.is_empty:
@@ -293,10 +311,6 @@ class SudokuEnv(gym.Env):
         # For all movements
         if not self.is_value:
             reward =- 1
-
-        # If time out
-        if self.current_step == settings.MAX_STEPS:
-            reward -= 1000
 
         self.cumulative_reward += reward
         self.all_rewards.append(reward)
@@ -314,10 +328,16 @@ class SudokuEnv(gym.Env):
         self.is_completed = self.unfilled_cases < 1
 
         terminated = (
+            # Sudoku is finished
             self.is_completed or
-            self.current_step == settings.MAX_STEPS
+            # Time out
+            self.current_step == MAX_STEPS or
+            # Filled case does not agreed with Sudoku rules
+            self.is_empty and not self.is_valid
+            # Try to fill a filled case
+            # self.is_value and not self.is_empty
         )
-        reward = self._compute_reward()
+        reward = self._compute_reward(terminated)
         obs = self._next_observation()
 
         return obs, reward, terminated, False, {}
@@ -327,6 +347,7 @@ class SudokuEnv(gym.Env):
         super().reset(seed=seed)
         self.current_step = 0
         self.cumulative_reward = 0
+        self.all_rewards = []
         self.is_completed = False
         self._init_grid()
 
@@ -451,7 +472,7 @@ class SudokuEnv(gym.Env):
             text, (self.window_size // 2 - 35, self.window_size + 75)
         )
 
-        if not self.is_valid:
+        if self.is_empty and not self.is_valid:
             draw_warning(
                 canvas, self.window_size // 4, self.window_size + 45,
                 radius=25
@@ -462,19 +483,19 @@ class SudokuEnv(gym.Env):
             )
 
         # Add chart
-        n = len(self.all_rewards)
-        if n > 1:
-            figure = pyc.Figure(
-                canvas,
-                self.window_size+25, 25,
-                self.window_size-50, self.window_size-50,
-                bg_color=WHITE
-            )
-            figure.add_title("Reward evolution")
-            figure.add_legend()
-            figure.add_xaxis_label("Steps")
-            figure.add_yaxis_label("Reward (log10)")
-            x = np.arange(n).tolist()
+        figure = pyc.Figure(
+            canvas,
+            self.window_size+25, 25,
+            self.window_size-50, self.window_size-50,
+            bg_color=WHITE
+        )
+        figure.line("", [0, 1], [0, 1], color=WHITE)
+        figure.add_title("Reward evolution")
+        figure.add_legend()
+        figure.add_xaxis_label("Steps")
+        figure.add_yaxis_label("Reward (log10)")
+        if self.current_step > 0:
+            x = np.arange(len(self.all_rewards)).tolist()
             y = np.array(self.all_rewards)
             sign_y = y / np.abs(y)
             figure.scatter(
@@ -487,8 +508,8 @@ class SudokuEnv(gym.Env):
                 "Cumulative Reward",
                 x, (np.log10(y * sign_y) * sign_y).tolist(),
             )
-            figure.draw()
-            canvas.blit(figure.background, (self.window_size+25, 25))
+        figure.draw()
+        canvas.blit(figure.background, (self.window_size+25, 25))
 
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the
@@ -531,3 +552,50 @@ def draw_warning(canvas, x, y, radius=25, width=5):
         (x + radius / np.sqrt(2), y + radius / np.sqrt(2)),
         width=width
     )
+
+
+
+if __name__ == '__main__':
+    game = SudokuEnv(render_mode="human")
+    _, _ = game.reset()
+
+    # game loop
+    while True:
+        game.render()
+
+        # Collect user input
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    action = 3
+                elif event.key == pygame.K_RIGHT:
+                    action = 2
+                elif event.key == pygame.K_UP:
+                    action = 0
+                elif event.key == pygame.K_DOWN:
+                    action = 1
+                elif event.key == pygame.K_KP1:
+                    action = 4
+                elif event.key == pygame.K_KP2:
+                    action = 5
+                elif event.key == pygame.K_KP3:
+                    action = 6
+                elif event.key == pygame.K_KP4:
+                    action = 7
+                elif event.key == pygame.K_KP5:
+                    action = 8
+                elif event.key == pygame.K_KP6:
+                    action = 9
+                elif event.key == pygame.K_KP7:
+                    action = 10
+                elif event.key == pygame.K_KP8:
+                    action = 11
+                elif event.key == pygame.K_KP9:
+                    action = 12
+
+                _, _, terminated, _, _ = game.step(action)
+                if terminated:
+                    _, _ = game.reset()
