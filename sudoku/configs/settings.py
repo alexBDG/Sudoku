@@ -17,8 +17,8 @@ high             = 1.
 
 # output config
 timestamp = datetime.now().strftime("%Y-%m-%d %HH%M")
-# output_path = os.path.join("results", f"sudoku {timestamp}")
-output_path = os.path.join("results", f"snake {timestamp}")
+output_path = os.path.join("results", f"sudoku {timestamp}")
+# output_path = os.path.join("results", f"snake {timestamp}")
 model_output = os.path.join(output_path, "model.weights")
 log_path = os.path.join(output_path, "log.txt")
 plot_output = os.path.join(output_path, "scores.png")

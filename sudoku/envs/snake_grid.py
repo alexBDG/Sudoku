@@ -20,16 +20,19 @@ class Direction(Enum):
 
     @classmethod
     def get_action(self, idx):
-        if idx == 0:
-            return self.NONE
-        elif idx == 1:
-            return self.RIGHT
-        elif idx == 2:
-            return self.LEFT
-        elif idx == 3:
-            return self.UP
-        elif idx == 4:
-            return self.DOWN
+        if idx == 0: return self.NONE
+        elif idx == 1: return self.RIGHT
+        elif idx == 2: return self.LEFT
+        elif idx == 3: return self.UP
+        elif idx == 4: return self.DOWN
+
+    @classmethod
+    def get_idx(self, action):
+        if action == self.NONE: return 0
+        elif action == self.RIGHT: return 1
+        elif action == self.LEFT: return 2
+        elif action == self.UP: return 3
+        elif action == self.DOWN: return 4
 
 Point = namedtuple('Point', 'x, y')
 
@@ -374,30 +377,52 @@ def draw_arrows(canvas, action, offset):
         )
 
 
-
-if __name__ == '__main__':
+def play(fps=None, store=False):
     game = SnakeEnv(render_mode="human")
+
+    if isinstance(fps, int):
+        game.metadata["render_fps"] = fps
+
+    if store:
+        try:
+            from .utils import EpisodeBuffer
+        except ImportError:
+            from utils import EpisodeBuffer
 
     # game loop
     while True:
-        game.render()
+        state, _ = game.reset()
+        if store: episode_buffer = EpisodeBuffer(name="snake")
+        while True:
+            game.render()
+            if store: episode_buffer.store_frame(state)
 
-        # Collect user input
-        action = Direction.NONE
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    action = Direction.LEFT
-                elif event.key == pygame.K_RIGHT:
-                    action = Direction.RIGHT
-                elif event.key == pygame.K_UP:
-                    action = Direction.UP
-                elif event.key == pygame.K_DOWN:
-                    action = Direction.DOWN
+            # Collect user input
+            action = Direction.NONE
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        action = Direction.LEFT
+                    elif event.key == pygame.K_RIGHT:
+                        action = Direction.RIGHT
+                    elif event.key == pygame.K_UP:
+                        action = Direction.UP
+                    elif event.key == pygame.K_DOWN:
+                        action = Direction.DOWN
 
-        obs, reward, terminated, _, _ = game.step(action)
-        if terminated:
-            _, _ = game.reset()
+            state, reward, done, _, _ = game.step(action)
+            if store:
+                episode_buffer.store_effect(
+                    Direction.get_idx(action), reward, done
+                )
+            if done:
+                if store: episode_buffer.save()
+                break
+
+
+
+if __name__ == '__main__':
+    play(fps=4, store=True)

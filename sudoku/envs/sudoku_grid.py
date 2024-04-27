@@ -191,7 +191,6 @@ class SudokuEnv(gym.Env):
         # Actions
         self.action_space = Discrete(N_ACTIONS)
         self._action_value = None
-        self._action_filled_new_case = None
 
         # Observations
         self.observation_space = Box(
@@ -201,6 +200,7 @@ class SudokuEnv(gym.Env):
         self.render_mode = render_mode
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
+        # PyGames
         self.window = None
         self.clock = None
 
@@ -268,9 +268,7 @@ class SudokuEnv(gym.Env):
         self.is_valid = False
         self.is_exact = False
         self.is_empty = self.is_value and self.grid[row_idx, col_idx, 0] <= 0
-        self._action_filled_new_case = False
         if self.is_empty:
-            self._action_filled_new_case = True
 
             # Check validity
             tmp_grid = self.grid[:, :, 0].copy()
@@ -294,23 +292,21 @@ class SudokuEnv(gym.Env):
         elif terminated:
             reward -= 1000
 
-        # If a correct value is found
-        if self.is_exact:
-            reward += 100
-        # If an incorrect value is found and is not correct
-        elif not self.is_valid:
-            reward -= 100
-        # If an incorrect value is found but is correct
-        elif self.is_valid:
-            reward += 10
-
-        # If the case was already filled
-        if not self.is_empty:
-            reward -= 10
-
         # For all movements
         if not self.is_value:
             reward =- 1
+        # If the case was already filled
+        elif not self.is_empty:
+            reward -= 1
+        # If a correct value is found
+        elif self.is_exact:
+            reward += 100
+        # If an incorrect value is found but is correct
+        elif self.is_valid:
+            reward += 10
+        # If an incorrect value is found and is not correct
+        # elif not self.is_valid:
+        #     reward -= 10  # <== This is already a game breaking condition
 
         self.cumulative_reward += reward
         self.all_rewards.append(reward)
@@ -554,48 +550,69 @@ def draw_warning(canvas, x, y, radius=25, width=5):
     )
 
 
-
-if __name__ == '__main__':
+def play(fps=None, store=False):
     game = SudokuEnv(render_mode="human")
-    _, _ = game.reset()
+
+    if isinstance(fps, int):
+        game.metadata["render_fps"] = fps
+
+    if store:
+        try:
+            from .utils import EpisodeBuffer
+        except ImportError:
+            from utils import EpisodeBuffer
 
     # game loop
     while True:
-        game.render()
+        state, _ = game.reset()
+        done = False
+        if store: episode_buffer = EpisodeBuffer(name="sudoku")
+        while True:
+            game.render()
 
-        # Collect user input
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    action = 3
-                elif event.key == pygame.K_RIGHT:
-                    action = 2
-                elif event.key == pygame.K_UP:
-                    action = 0
-                elif event.key == pygame.K_DOWN:
-                    action = 1
-                elif event.key == pygame.K_KP1:
-                    action = 4
-                elif event.key == pygame.K_KP2:
-                    action = 5
-                elif event.key == pygame.K_KP3:
-                    action = 6
-                elif event.key == pygame.K_KP4:
-                    action = 7
-                elif event.key == pygame.K_KP5:
-                    action = 8
-                elif event.key == pygame.K_KP6:
-                    action = 9
-                elif event.key == pygame.K_KP7:
-                    action = 10
-                elif event.key == pygame.K_KP8:
-                    action = 11
-                elif event.key == pygame.K_KP9:
-                    action = 12
+            # Collect user input
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        action = 3
+                    elif event.key == pygame.K_RIGHT:
+                        action = 2
+                    elif event.key == pygame.K_UP:
+                        action = 0
+                    elif event.key == pygame.K_DOWN:
+                        action = 1
+                    elif event.key == pygame.K_1 or event.key == pygame.K_KP1:
+                        action = 4
+                    elif event.key == pygame.K_2 or event.key == pygame.K_KP2:
+                        action = 5
+                    elif event.key == pygame.K_3 or event.key == pygame.K_KP3:
+                        action = 6
+                    elif event.key == pygame.K_4 or event.key == pygame.K_KP4:
+                        action = 7
+                    elif event.key == pygame.K_5 or event.key == pygame.K_KP5:
+                        action = 8
+                    elif event.key == pygame.K_6 or event.key == pygame.K_KP6:
+                        action = 9
+                    elif event.key == pygame.K_7 or event.key == pygame.K_KP7:
+                        action = 10
+                    elif event.key == pygame.K_8 or event.key == pygame.K_KP8:
+                        action = 11
+                    elif event.key == pygame.K_9 or event.key == pygame.K_KP9:
+                        action = 12
 
-                _, _, terminated, _, _ = game.step(action)
-                if terminated:
-                    _, _ = game.reset()
+                    if store: episode_buffer.store_frame(state)
+
+                    state, reward, done, _, _ = game.step(action)
+                    if store: episode_buffer.store_effect(action, reward, done)
+
+            if done:
+                if store: episode_buffer.save()
+                break
+
+
+
+if __name__ == '__main__':
+    play(store=True)
