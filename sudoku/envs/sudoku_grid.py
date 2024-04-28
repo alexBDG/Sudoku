@@ -51,7 +51,7 @@ class SudokuGenerator(object):
 
         # Filter by difficulty
         df = df[df["difficulty"] <= min_difficulty]
-        df.reset_index(drop=True, inplace=True)
+        df = df.sample(frac=1).reset_index(drop=True)
 
         # Filter low difficulty grid
         self.puzzle = df["puzzle"].values
@@ -603,6 +603,8 @@ def play(fps=None, store=False):
                         action = 11
                     elif event.key == pygame.K_9 or event.key == pygame.K_KP9:
                         action = 12
+                    elif event.key == pygame.K_q:
+                        quit()
 
                     if store: episode_buffer.store_frame(state)
 

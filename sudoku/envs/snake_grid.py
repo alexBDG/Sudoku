@@ -413,6 +413,8 @@ def play(fps=None, store=False):
                         action = Direction.UP
                     elif event.key == pygame.K_DOWN:
                         action = Direction.DOWN
+                    elif event.key == pygame.K_q:
+                        quit()
 
             state, reward, done, _, _ = game.step(action)
             if store:

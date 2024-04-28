@@ -315,7 +315,7 @@ class QN(object):
         return loss_eval, grad_eval
 
 
-    def evaluate(self, env=None, num_episodes=None):
+    def evaluate(self, env=None, num_episodes=None, step_mode="train"):
         """
         Evaluation with same procedure as the training
         """
@@ -336,7 +336,7 @@ class QN(object):
         )
         rewards = []
 
-        for i in range(num_episodes):
+        for _ in range(num_episodes):
             total_reward = 0
             state, _ = env.reset()
             while True:
@@ -346,7 +346,10 @@ class QN(object):
                 idx = replay_buffer.store_frame(state)
                 q_input = replay_buffer.encode_recent_observation()
 
-                action = self.get_action(q_input)
+                if step_mode == "train":
+                    action = self.get_action(q_input)
+                elif step_mode == "test":
+                    action, _ = self.get_best_action(state)
 
                 # perform action in env
                 new_state, reward, done, _, _ = env.step(action)
@@ -393,7 +396,7 @@ class QN(object):
                 episode_trigger=lambda x: True, name_prefix=f"step-{t}"
             )
 
-        self.evaluate(env, 1)
+        self.evaluate(env, num_episodes=1, step_mode=step_mode)
 
 
     def run(self, exp_schedule, lr_schedule):
