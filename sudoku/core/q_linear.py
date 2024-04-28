@@ -68,11 +68,11 @@ class Linear(DQN):
             out = tf.layers.flatten(state,
                                     name='flatten')
             out = tf.layers.dense(out,
-                                  self.config.DIM_DENSE_1,
+                                  1024,
                                   activation="relu",
                                   name='fc1')
             out = tf.layers.dense(out,
-                                  self.config.DIM_DENSE_2,
+                                  1024,
                                   activation="relu",
                                   name='fc2')
             out = tf.layers.dense(out,

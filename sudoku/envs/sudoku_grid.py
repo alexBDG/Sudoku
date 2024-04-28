@@ -166,6 +166,7 @@ class SudokuEnv(gym.Env):
         "step_modes": ["train", "test"],
         "render_fps": 30
     }
+    name = "sudoku"
 
     def __init__(self, render_mode="human", step_mode="train",
                  dtype=np.float32):
@@ -566,7 +567,7 @@ def play(fps=None, store=False):
     while True:
         state, _ = game.reset()
         done = False
-        if store: episode_buffer = EpisodeBuffer(name="sudoku")
+        if store: episode_buffer = EpisodeBuffer(name=game.name)
         while True:
             game.render()
 
@@ -615,4 +616,4 @@ def play(fps=None, store=False):
 
 
 if __name__ == '__main__':
-    play(store=True)
+    play()

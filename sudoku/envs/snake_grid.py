@@ -79,6 +79,7 @@ class SnakeEnv(gym.Env):
         "step_modes": ["train", "test"],
         "render_fps": 30
     }
+    name = "snake"
 
     def __init__(self, render_mode="human", step_mode="train",
                  dtype=np.float32):
@@ -392,7 +393,7 @@ def play(fps=None, store=False):
     # game loop
     while True:
         state, _ = game.reset()
-        if store: episode_buffer = EpisodeBuffer(name="snake")
+        if store: episode_buffer = EpisodeBuffer(name=game.name)
         while True:
             game.render()
             if store: episode_buffer.store_frame(state)
@@ -425,4 +426,4 @@ def play(fps=None, store=False):
 
 
 if __name__ == '__main__':
-    play(fps=4, store=True)
+    play()

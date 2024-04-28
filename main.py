@@ -1,14 +1,6 @@
 # System imports.
 import argparse
 
-# Local imports.
-from sudoku.envs.snake_grid import SnakeEnv
-from sudoku.envs.sudoku_grid import SudokuEnv
-from sudoku.core.q_nature import NatureQN
-from sudoku.core.q_schedule import LinearSchedule
-from sudoku.core.q_schedule import LinearExploration
-from sudoku.configs import settings
-
 
 
 def get_parsed_arguments():
@@ -24,6 +16,11 @@ def get_parsed_arguments():
             "initialization of the environment."
         ), default="rgb_array", choices=["human", "ansi", "rgb_array"]
     )
+    parser.add_argument(
+        "--playing_mode", help=(
+            "How to play the game, using the algorithm or manualy."
+        ), default="automatic", choices=["automatic", "manual"]
+    )
     args = parser.parse_args()
     return args
 
@@ -32,10 +29,26 @@ def get_parsed_arguments():
 if __name__ == "__main__":
     args = get_parsed_arguments()
 
+    if args.playing_mode == "manual":
+        if args.game == "sudoku":
+            from sudoku.envs.sudoku_grid import play
+        elif args.game == "snake":
+            from sudoku.envs.snake_grid import play
+        play(fps=4, store=True)
+        quit()
+
+    # Local imports.
+    from sudoku.envs.snake_grid import SnakeEnv
+    from sudoku.envs.sudoku_grid import SudokuEnv
+    from sudoku.core.q_nature import NatureQN
+    from sudoku.core.q_schedule import LinearSchedule
+    from sudoku.core.q_schedule import LinearExploration
+    from sudoku.configs import settings
+
     # make env
     if args.game == "sudoku":
         env = SudokuEnv(render_mode=args.render_mode)
-    else:
+    elif args.game == "snake":
         env = SnakeEnv(render_mode=args.render_mode)
 
     # exploration strategy

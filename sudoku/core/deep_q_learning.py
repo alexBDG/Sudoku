@@ -158,10 +158,11 @@ class DQN(QN):
         """
         Saves session
         """
-        if not os.path.exists(self.config.model_output):
-            os.makedirs(self.config.model_output)
+        model_output = os.path.join(self.output_path, "model.weights")
+        if not os.path.exists(model_output):
+            os.makedirs(model_output)
 
-        self.saver.save(self.sess, self.config.model_output)
+        self.saver.save(self.sess, model_output)
 
 
     def get_best_action(self, state):

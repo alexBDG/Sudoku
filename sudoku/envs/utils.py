@@ -3,6 +3,9 @@ import os
 import time
 import numpy as np
 
+# Local imports.
+from ..configs.settings import buffer_path
+
 
 
 class EpisodeBuffer(object):
@@ -29,14 +32,15 @@ class EpisodeBuffer(object):
         self.done = np.append(self.done, done)
 
     def save(self):
-        if not os.path.exists("data"):
-            os.makedirs("data")
+        folder = os.path.join(buffer_path, self.name)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         total_reward = float(np.sum(self.reward))
         filename = (
             f"{self.name} t={self.time_stamp:.0f}s "
             f"reward={total_reward:.0f} steps={self.steps}"
         )
         np.savez(
-            os.path.join("data", filename),
+            os.path.join(folder, filename),
             obs=self.obs, action=self.action, reward=self.reward, done=self.done
         )
