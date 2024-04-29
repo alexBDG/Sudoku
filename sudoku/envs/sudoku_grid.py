@@ -1,16 +1,85 @@
 # System imports.
 import pygame
 import numpy as np
+import pandas as pd
 import gymnasium as gym
 
 # Local imports.
 from ..configs import settings
+
+# Set seed
+np.random.seed(0)
 
 BLACK = (0, 0, 0)
 GREY = (128, 128, 128)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 
+
+
+class SudokuGenerator(object):
+    """
+    Generate Sudoku grids.
+
+    References
+    ----------
+    `3 million Sudoku puzzles with ratings 
+    <https://www.kaggle.com/datasets/radcliffe/3-million-sudoku-puzzles-with-ratings>`
+    """
+
+    def __init__(self, step_mode="train"):
+        # Either `"train"` or `"test"`
+        self.step_mode = step_mode
+        # Load data
+        df = pd.read_csv(settings.sudoku_path)
+
+        # Filter by difficulty
+        df = df[df["difficulty"] <= settings.min_difficulty]
+        df.reset_index(drop=True, inplace=True)
+
+        # Filter low difficulty grid
+        self.puzzle = df["puzzle"].values
+        self.solution = df["solution"]
+        # self.clues = df["clues"]
+
+        # Index
+        self.n = 0
+        self.n_max = self.puzzle.shape[0]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.n > self.n_max:
+            raise StopIteration
+        if self.step_mode == "train":
+            self.n += 1
+
+        # Transform the grid from str to 3d array
+        grid = self.puzzle[self.n]
+        grid = grid.replace(".", "0")
+        grid = np.array([tuple(map(int, grid[n*9:n*9+9])) for n in range(0,9)])
+        grid = np.concatenate([
+            np.expand_dims(grid, axis=0) == k for k in range(10)
+        ], axis=0).astype("float32")
+        grid = np.moveaxis(grid, 0, 2)
+
+        # Transform the solution from str to 2d array
+        solu = self.solution[self.n]
+        solu = solu.replace(".", "0")
+        solu = np.array([tuple(map(int, solu[n*9:n*9+9])) for n in range(0,9)])
+        solu = solu.astype("float32")
+        return grid, solu
+
+    def _extract_one_grid(self, line_grid):
+        # Transform the grid from str to 3d array
+        grid = line_grid.replace(".", "0")
+        grid = np.array([tuple(map(int, grid[n*9:n*9+9])) for n in range(0,9)])
+        grid = np.concatenate([
+            np.expand_dims(grid, axis=0) == k for k in range(10)
+        ], axis=0).astype("float32")
+        grid = np.moveaxis(grid, 0, 2)
+        return grid
 
 
 def grid_3d_to_2d(grid):
@@ -112,18 +181,24 @@ class SudokuEnv(gym.Env):
     """A fonction approximation environment for OpenAI gym"""
     metadata = {
         "render_modes": ["human", "ansi", "rgb_array"],
+        "step_modes": ["train", "test"],
         "render_fps": 30
     }
 
-    def __init__(self, grid, render_mode="human", dtype=np.float32):
-        self.grid = None
+    def __init__(self, render_mode="human", step_mode="train",
+                 dtype=np.float32):
         self.cumulative_reward = None
         self.is_completed = None
         self.is_unvalid = False
-        self.initial_grid = grid
         self.dtype = dtype
         self.window_size = 513  # The size of the PyGame window
-        self.empty_cases = np.sum(grid[:, :, 0] > 0)
+        self.grid = None
+        self.initial_grid = None
+        self.initial_solu = None
+        self.empty_cases = None
+
+        # Initiate the grid generator
+        self.grid_generator = SudokuGenerator(step_mode)
 
         # Actions
         self.action_space = Discrete(settings.N_ACTIONS)
@@ -151,7 +226,13 @@ class SudokuEnv(gym.Env):
         np.random.shuffle(idx)
         idx = idx.reshape(idx_shape)
 
-        return np.concatenate([self.initial_grid.copy(), idx], axis=-1)
+        # Get the new grid
+        grid, solu = next(self.grid_generator)
+        self.initial_grid = grid_3d_to_2d(grid[:, :, 1:])
+        self.solution_grid = solu
+        self.empty_cases = np.sum(grid[:, :, 0] > 0)
+
+        self.grid = np.concatenate([grid, idx], axis=-1)
 
 
     def _next_observation(self):
@@ -226,9 +307,10 @@ class SudokuEnv(gym.Env):
 
         self.is_unvalid = False
         if self._action_filled_new_case:
-            # Transform one hot grid into 2d grid
-            grid_2d = grid_3d_to_2d(self.grid[:, :, 1:-1])
-            self.is_unvalid = not check_grid_validity(grid_2d)
+            # Get current row/col indexes
+            row_idx = np.arange(9)[self.grid[:, :, -1].sum(1).astype(bool)]
+            col_idx = np.arange(9)[self.grid[:, :, -1].sum(0).astype(bool)]
+            self.is_unvalid = self.solution_grid[row_idx, col_idx] != self._action_value
 
         terminated = (
             self.is_completed or
@@ -246,7 +328,7 @@ class SudokuEnv(gym.Env):
         self.current_step = 0
         self.cumulative_reward = 0
         self.is_completed = False
-        self.grid = self._init_grid()
+        self._init_grid()
 
         obs = self._next_observation()
 
@@ -254,7 +336,6 @@ class SudokuEnv(gym.Env):
 
 
     def render(self):
-        # if self.current_step == 0 or self._action_filled_new_case or self._action_value is None:
         if self.render_mode == "ansi":
             rows = []
             for i, row in enumerate(self.grid):
@@ -318,15 +399,16 @@ class SudokuEnv(gym.Env):
 
         # Filling digit
         grid = grid_3d_to_2d(self.grid[:, :, 1:-1])
-        initial_grid = grid_3d_to_2d(self.initial_grid[:, :, 1:])
         police = pygame.font.Font(None, 36)
         for i in range(9):
             for j in range(9):
-                if initial_grid[i][j] > 0:
-                    texte = police.render(str(initial_grid[i][j]), True, BLACK)
+                if self.initial_grid[i][j] > 0:
+                    texte = police.render(
+                        str(self.initial_grid[i][j]), True, BLACK
+                    )
                 elif grid[i][j] > 0:
                     texte = police.render(str(grid[i][j]), True, GREY)
-                if initial_grid[i][j] + grid[i][j] > 0:
+                if self.initial_grid[i][j] + grid[i][j] > 0:
                     canvas.blit(
                         texte, (j * case_width + 20, i * case_width + 15)
                     )

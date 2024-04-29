@@ -12,3 +12,6 @@ local_settings.py
 
 # Test files
 test.py
+
+# Data
+sudoku/configs/data/*.csv

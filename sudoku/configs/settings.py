@@ -3,6 +3,11 @@ import os
 from datetime import datetime
 
 
+
+# data path
+sudoku_path = os.path.join(os.path.dirname(__file__), "data", "sudoku-3m.csv")
+min_difficulty = 0.
+
 # env config
 render_train     = False
 render_test      = False
@@ -23,16 +28,16 @@ record_path = os.path.join(output_path, "records")
 num_episodes_test = 50
 grad_clip         = True
 clip_val          = 10
-saving_freq       = 50000
+saving_freq       = 500000
 log_freq          = 50
-eval_freq         = 50000
-record_freq       = 50000
+eval_freq         = 500000
+record_freq       = 500000
 soft_epsilon      = 0.05
 
 # hyper params
 nsteps_train       = 5000000
-batch_size         = 32
-buffer_size        = 1000000
+batch_size         = 128
+buffer_size        = 500000
 target_update_freq = 10000
 gamma              = 0.99
 learning_freq      = 4
