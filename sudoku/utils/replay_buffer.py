@@ -1,5 +1,9 @@
-import numpy as np
+# System imports.
+import os
 import random
+import numpy as np
+
+
 
 def sample_n_unique(sampling_f, n):
     """Helper function. Given a function `sampling_f` that returns
@@ -12,11 +16,12 @@ def sample_n_unique(sampling_f, n):
             res.append(candidate)
     return res
 
+
 class ReplayBuffer(object):
     """
     Taken from Berkeley's Assignment
     """
-    def __init__(self, size, frame_history_len):
+    def __init__(self, size, frame_history_len, buffer_path=None):
         """This is a memory efficient implementation of the replay buffer.
 
         The sepecific memory optimizations use here are:
@@ -41,17 +46,56 @@ class ReplayBuffer(object):
             overflows the old memories are dropped.
         frame_history_len: int
             Number of memories to be retried for each observation.
+        buffer_path: str, default=None
+            Path of already saved episodes.
         """
         self.size = size
         self.frame_history_len = frame_history_len
 
-        self.next_idx      = 0
+        self.next_idx = 0
         self.num_in_buffer = 0
+        self.num_episodes = 0
 
-        self.obs      = None
-        self.action   = None
-        self.reward   = None
-        self.done     = None
+        self.obs = None
+        self.action = None
+        self.reward = None
+        self.done = None
+
+        if isinstance(buffer_path, str):
+            self._load_episodes(buffer_path)
+
+    def _load_episodes(self, path):
+        # Should have saved episodes files or do nothing
+        if not os.path.isdir(path) or len(os.listdir(path)) == 0:
+            return 0
+
+        for filename in os.listdir(path):
+            print(f"[INFO] Loading external episode: <{filename}>")
+            data = np.load(os.path.join(path, filename))
+            obs = data["obs"]
+            action = data["action"]
+            reward = data["reward"]
+            done = data["done"]
+            del data
+            if self.obs is None:
+                self._init_arrays(obs[0])
+
+            n = obs.shape[0]
+            # Remove extra values
+            n += min(0, self.size - (self.next_idx + n))
+
+            self.obs[self.next_idx:self.next_idx+n] = obs[:n]
+            self.action[self.next_idx:self.next_idx+n] = action[:n]
+            self.reward[self.next_idx:self.next_idx+n] = reward[:n]
+            self.done[self.next_idx:self.next_idx+n] = done[:n]
+
+            self.next_idx = (self.next_idx + n) % self.size
+            self.num_in_buffer += n
+            self.num_episodes += 1
+
+            if self.num_in_buffer >= self.size:
+                break
+        print("[INFO] Number of initial steps in buffer:", self.num_in_buffer)
 
     def can_sample(self, batch_size):
         """Returns true if `batch_size` different transitions can be sampled from the buffer."""
@@ -65,7 +109,6 @@ class ReplayBuffer(object):
         done_mask      = np.array([1.0 if self.done[idx] else 0.0 for idx in idxes], dtype=np.float32)
 
         return obs_batch, act_batch, rew_batch, next_obs_batch, done_mask
-
 
     def sample(self, batch_size):
         """Sample `batch_size` different transitions.
@@ -143,6 +186,12 @@ class ReplayBuffer(object):
             img_h, img_w = self.obs.shape[1], self.obs.shape[2]
             return self.obs[start_idx:end_idx].transpose(1, 2, 0, 3).reshape(img_h, img_w, -1)
 
+    def _init_arrays(self, frame):
+        self.obs      = np.empty([self.size] + list(frame.shape), dtype=np.int8)
+        self.action   = np.empty([self.size],                     dtype=np.int32)
+        self.reward   = np.empty([self.size],                     dtype=np.float32)
+        self.done     = np.empty([self.size],                     dtype=bool)
+
     def store_frame(self, frame):
         """Store a single frame in the buffer at the next available index, overwriting
         old frames if necessary.
@@ -159,10 +208,7 @@ class ReplayBuffer(object):
             Index at which the frame is stored. To be used for `store_effect` later.
         """
         if self.obs is None:
-            self.obs      = np.empty([self.size] + list(frame.shape), dtype=np.uint8)
-            self.action   = np.empty([self.size],                     dtype=np.int32)
-            self.reward   = np.empty([self.size],                     dtype=np.float32)
-            self.done     = np.empty([self.size],                     dtype=bool)
+            self._init_arrays(frame)
         self.obs[self.next_idx] = frame
 
         ret = self.next_idx

@@ -2,8 +2,9 @@
 import os
 import warnings
 import numpy as np
-import gymnasium as gym
 from tqdm import tqdm
+import gymnasium as gym
+from datetime import datetime
 from collections import deque
 from moviepy.editor import VideoFileClip
 
@@ -11,7 +12,6 @@ from moviepy.editor import VideoFileClip
 from ..utils.general import Summarize
 from ..utils.general import get_logger
 from ..utils.replay_buffer import ReplayBuffer
-from ..envs.sudoku_grid import SudokuEnv
 
 
 
@@ -27,15 +27,21 @@ class QN(object):
             config: class with hyperparameters
             logger: logger instance from logging module
         """
+        timestamp = datetime.now().strftime("%Y-%m-%d %HH%M")
+        self.output_path = os.path.join(
+            config.output_path, f"{env.name} {timestamp}"
+        )
         # directory for training outputs
-        if not os.path.exists(config.output_path):
-            os.makedirs(config.output_path)
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
 
         # store hyper params
         self.config = config
         self.logger = logger
         if logger is None:
-            self.logger = get_logger(config.log_path)
+            self.logger = get_logger(
+                os.path.join(self.output_path, config.log_path)
+            )
         self.env = env
 
         # build model
@@ -155,22 +161,28 @@ class QN(object):
 
         # initialize replay buffer and variables
         replay_buffer = ReplayBuffer(
-            self.config.buffer_size, self.config.state_history
+            self.config.buffer_size, self.config.state_history,
+            os.path.join(self.config.buffer_path, self.env.name)
         )
         rewards = deque(maxlen=self.config.num_episodes_test)
         max_q_values = deque(maxlen=1000)
         q_values = deque(maxlen=1000)
         self.init_averages()
         summarize = Summarize(
-            file_path=self.config.summarize_output,
+            file_path=os.path.join(
+                self.output_path, self.config.summarize_output
+            ),
             total=self.config.nsteps_train,
         )
 
-        episodes = 0 # time control of nb of elasped episodes
-        t = last_eval = last_record = 0 # time control of nb of steps
+        # time control of nb of elasped episodes
+        episodes = replay_buffer.num_episodes
+        # time control of nb of steps
+        t = last_eval = last_record = replay_buffer.num_in_buffer
         summarize.update_evaluation(0, reward=self.evaluate())
 
         pbar = tqdm(total=self.config.nsteps_train)
+        pbar.update(replay_buffer.num_in_buffer)
 
         # interact with environment
         while t < self.config.nsteps_train:
@@ -201,7 +213,9 @@ class QN(object):
                 state = new_state
 
                 # perform a training step
-                loss_eval, grad_eval = self.train_step(t, replay_buffer, lr_schedule.epsilon)
+                loss_eval, grad_eval = self.train_step(
+                    t, replay_buffer, lr_schedule.epsilon
+                )
 
                 # logging stuff
                 pbar.update(1)
@@ -212,8 +226,11 @@ class QN(object):
                     learning_rate=lr_schedule.epsilon,
                     epsilon=exp_schedule.epsilon,
                 )
-                if ((t > self.config.learning_start) and (t % self.config.log_freq == 0) and
-                   (t % self.config.learning_freq == 0)):
+                if (
+                    (t > self.config.learning_start) and
+                    (t % self.config.log_freq == 0) and
+                    (t % self.config.learning_freq == 0)
+                ):
                     self.update_averages(
                         rewards, max_q_values, q_values, summarize.scores_eval
                     )
@@ -231,7 +248,10 @@ class QN(object):
                             lr=f"{lr_schedule.epsilon:.2E}"
                         )
 
-                elif (t < self.config.learning_start) and (t % self.config.log_freq == 0):
+                elif (
+                    (t < self.config.learning_start) and
+                    (t % self.config.log_freq == 0)
+                ):
                     pbar.set_description("Populating the memory")
 
                 # count reward
@@ -244,15 +264,22 @@ class QN(object):
             summarize.update_episode(1, reward=total_reward)
             rewards.append(total_reward)
 
-            if (t > self.config.learning_start) and (last_eval > self.config.eval_freq):
+            if (
+                (t > self.config.learning_start) and
+                (last_eval > self.config.eval_freq)
+            ):
                 # evaluate our policy
                 last_eval = 0
                 summarize.update_evaluation(1, reward=self.evaluate())
 
-            if (t > self.config.learning_start) and self.config.record and (last_record > self.config.record_freq):
+            if (
+                (t > self.config.learning_start) and
+                self.config.record and
+                (last_record > self.config.record_freq)
+            ):
                 self.logger.info("Recording...")
                 last_record = 0
-                self.record(t=t)
+                self.record(t=t, step_mode="test")
                 summarize.plot()
 
         # last words
@@ -289,7 +316,7 @@ class QN(object):
         return loss_eval, grad_eval
 
 
-    def evaluate(self, env=None, num_episodes=None):
+    def evaluate(self, env=None, num_episodes=None, step_mode="train"):
         """
         Evaluation with same procedure as the training
         """
@@ -310,7 +337,7 @@ class QN(object):
         )
         rewards = []
 
-        for i in range(num_episodes):
+        for _ in range(num_episodes):
             total_reward = 0
             state, _ = env.reset()
             while True:
@@ -320,7 +347,10 @@ class QN(object):
                 idx = replay_buffer.store_frame(state)
                 q_input = replay_buffer.encode_recent_observation()
 
-                action = self.get_action(q_input)
+                if step_mode == "train":
+                    action = self.get_action(q_input)
+                elif step_mode == "test":
+                    action, _ = self.get_best_action(q_input)
 
                 # perform action in env
                 new_state, reward, done, _, _ = env.step(action)
@@ -355,15 +385,19 @@ class QN(object):
             t: (int) nths step
         """
 
-        env = SudokuEnv(render_mode="rgb_array", step_mode=step_mode)
+        # Define a new instance of the same environment
+        env = self.env.__class__(render_mode="rgb_array", step_mode=step_mode)
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
             env = gym.wrappers.RecordVideo(
-                env, video_folder=self.config.record_path,
+                env, video_folder=os.path.join(
+                    self.output_path, self.config.record_path
+                ),
                 episode_trigger=lambda x: True, name_prefix=f"step-{t}"
             )
 
-        self.evaluate(env, 1)
+        self.evaluate(env, num_episodes=1, step_mode=step_mode)
 
 
     def run(self, exp_schedule, lr_schedule):
@@ -382,7 +416,8 @@ class QN(object):
             self.record(t="start", step_mode="test")
             # Save as GIF
             video_name = os.path.join(
-                self.config.record_path, f"step-start-episode-0"
+                self.output_path, self.config.record_path,
+                f"step-start-episode-0"
             )
             videoClip = VideoFileClip(f"{video_name}.mp4")
             videoClip.write_gif(f"{video_name}.gif")
@@ -395,7 +430,8 @@ class QN(object):
             self.record(t="end", step_mode="test")
             # Save as GIF
             video_name = os.path.join(
-                self.config.record_path, f"step-end-episode-0"
+                self.output_path, self.config.record_path,
+                f"step-end-episode-0"
             )
             videoClip = VideoFileClip(f"{video_name}.mp4")
             videoClip.write_gif(f"{video_name}.gif")

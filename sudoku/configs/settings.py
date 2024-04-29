@@ -1,6 +1,5 @@
 # System imports.
 import os
-from datetime import datetime
 
 
 
@@ -16,13 +15,12 @@ record           = True
 high             = 1.
 
 # output config
-timestamp = datetime.now().strftime("%Y-%m-%d %HH%M")
-output_path = os.path.join("results", f"13-actions {timestamp}")
-model_output = os.path.join(output_path, "model.weights")
-log_path = os.path.join(output_path, "log.txt")
-plot_output = os.path.join(output_path, "scores.png")
-summarize_output = os.path.join(output_path, "summarize.png")
-record_path = os.path.join(output_path, "records")
+output_path = "results"
+model_output = "model.weights"
+log_path = "log.txt"
+summarize_output = "summarize.png"
+record_path = "records"
+buffer_path = "data"
 
 # model and training config
 num_episodes_test = 50
@@ -48,15 +46,12 @@ lr_end             = 0.00005
 lr_nsteps          = nsteps_train/2
 eps_begin          = 1
 eps_end            = 0.1
-eps_nsteps         = 1000000
+eps_nsteps         = 2000000
 learning_start     = 50000
 
 
 # Environment settings
 MAX_STEPS = 10000
-
-N_ACTIONS = 9 + 4
-OBS_SHAPE = (9, 9, 11)
 
 
 try:

@@ -56,18 +56,3 @@ IDX = np.array([
     [0, 0, 0,   0, 0, 0,   0, 0, 0],
     [0, 0, 0,   0, 0, 0,   0, 0, 0],
 ])
-
-GRID_1 = np.concatenate([
-    GRID_1.reshape(1, 9, 9) == k for k in range(10)
-], axis=0).astype("float32")
-GRID_1 = np.moveaxis(GRID_1, 0, 2)
-
-GRID = np.concatenate([
-    GRID.reshape(1, 9, 9) == k for k in range(10)
-], axis=0).astype("float32")
-GRID = np.moveaxis(GRID, 0, 2)
-
-FULL_GRID = np.concatenate([
-    FULL_GRID.reshape(1, 9, 9) == k for k in range(10)
-], axis=0).astype("float32")
-FULL_GRID = np.moveaxis(FULL_GRID, 0, 2)
