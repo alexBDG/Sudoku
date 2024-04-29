@@ -65,7 +65,10 @@ class DQN(QN):
                     if , values are between 0 and 255 -> 0 and 1
         """
         state = tf.cast(state, tf.float32)
-        state /= self.config.high
+        state = (
+            (state - self.env.observation_space.low) /
+            (self.env.observation_space.high - self.env.observation_space.low)
+        )
 
         return state
 

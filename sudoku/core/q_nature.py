@@ -102,14 +102,16 @@ class NatureQN(Linear):
         num_actions = self.env.action_space.shape
 
         with tf.variable_scope(scope, reuse=reuse):
-            # ( batch_size x 18 x 18 x 4 )
+            # ( batch_size x 18 x 18 x 4 ) => Snake
+            # ( batch_size x 9 x 9 x 8 ) => Sudoku
             out = tf.layers.conv2d(state,
                                    filters=32,
                                    kernel_size=8,
                                    strides=2,
                                    padding="same",
                                    activation="relu")
-            # ( batch_size x 5 x 5 x 32 )
+            # ( batch_size x 9 x 9 x 32 ) => Snake
+            # ( batch_size x 5 x 5 x 32 ) => Sudoku
 
             out = tf.layers.conv2d(out,
                                    filters=64,
@@ -117,7 +119,8 @@ class NatureQN(Linear):
                                    strides=2,
                                    padding="same",
                                    activation="relu")
-            # ( batch_size x 3 x 3 x 128 )
+            # ( batch_size x 5 x 5 x 64 ) => Snake
+            # ( batch_size x 3 x 3 x 64 ) => Sudoku
 
             out = tf.layers.conv2d(out,
                                    filters=128,
@@ -125,11 +128,13 @@ class NatureQN(Linear):
                                    strides=1,
                                    padding="same",
                                    activation="relu")
-            # ( batch_size x 3 x 3 x 128 )
+            # ( batch_size x 5 x 5 x 128 ) => Snake
+            # ( batch_size x 3 x 3 x 128 ) => Sudoku
 
             out = tf.layers.flatten(out)
 
-            # ( batch_size x 1152 )
+            # ( batch_size x 3200 ) => Snake
+            # ( batch_size x 1152 ) => Sudoku
             out = tf.layers.dense(out,
                                   512,
                                   activation="relu")

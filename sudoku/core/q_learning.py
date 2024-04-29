@@ -182,6 +182,7 @@ class QN(object):
         summarize.update_evaluation(0, reward=self.evaluate())
 
         pbar = tqdm(total=self.config.nsteps_train)
+        pbar.update(replay_buffer.num_in_buffer)
 
         # interact with environment
         while t < self.config.nsteps_train:
@@ -349,7 +350,7 @@ class QN(object):
                 if step_mode == "train":
                     action = self.get_action(q_input)
                 elif step_mode == "test":
-                    action, _ = self.get_best_action(state)
+                    action, _ = self.get_best_action(q_input)
 
                 # perform action in env
                 new_state, reward, done, _, _ = env.step(action)

@@ -11,13 +11,13 @@ def get_parsed_arguments():
         ), default="sudoku", choices=["sudoku", "snake"]
     )
     parser.add_argument(
-        "--render_mode", help=(
+        "--render-mode", help=(
             "Compute the render frames as specified by render_mode during the "
             "initialization of the environment."
         ), default="rgb_array", choices=["human", "ansi", "rgb_array"]
     )
     parser.add_argument(
-        "--playing_mode", help=(
+        "--playing-mode", help=(
             "How to play the game, using the algorithm or manualy."
         ), default="automatic", choices=["automatic", "manual"]
     )

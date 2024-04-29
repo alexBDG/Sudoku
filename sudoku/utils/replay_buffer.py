@@ -80,23 +80,22 @@ class ReplayBuffer(object):
             if self.obs is None:
                 self._init_arrays(obs[0])
 
-            num_in_file = obs.shape[0]
+            n = obs.shape[0]
             # Remove extra values
-            num_in_file += min(0, self.size - (self.next_idx + num_in_file))
+            n += min(0, self.size - (self.next_idx + n))
 
-            self.obs[self.next_idx:self.next_idx+num_in_file] = obs
-            self.action[self.next_idx:self.next_idx+num_in_file] = action
-            self.reward[self.next_idx:self.next_idx+num_in_file] = reward
-            self.done[self.next_idx:self.next_idx+num_in_file] = done
+            self.obs[self.next_idx:self.next_idx+n] = obs[:n]
+            self.action[self.next_idx:self.next_idx+n] = action[:n]
+            self.reward[self.next_idx:self.next_idx+n] = reward[:n]
+            self.done[self.next_idx:self.next_idx+n] = done[:n]
 
-            self.next_idx += num_in_file
-            self.num_in_buffer += num_in_file
+            self.next_idx = (self.next_idx + n) % self.size
+            self.num_in_buffer += n
             self.num_episodes += 1
 
             if self.num_in_buffer >= self.size:
                 break
-
-        print("self.num_in_buffer", self.num_in_buffer)
+        print("[INFO] Number of initial steps in buffer:", self.num_in_buffer)
 
     def can_sample(self, batch_size):
         """Returns true if `batch_size` different transitions can be sampled from the buffer."""
