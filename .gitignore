@@ -14,5 +14,4 @@ local_settings.py
 test.py
 
 # Data
-data/*/*.npz
-sudoku/configs/data/*.csv
+data/

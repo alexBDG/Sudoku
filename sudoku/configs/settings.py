@@ -4,13 +4,11 @@ import os
 
 
 # data path
-sudoku_path = os.path.join(os.path.dirname(__file__), "data", "sudoku-3m.csv")
+sudoku_path = os.path.join("data", "sudoku-3m.csv")
 min_difficulty = 0.
 
 # env config
-render_train     = False
 render_test      = False
-overwrite_render = True
 record           = True
 high             = 1.
 

@@ -162,7 +162,7 @@ class QN(object):
         # initialize replay buffer and variables
         replay_buffer = ReplayBuffer(
             self.config.buffer_size, self.config.state_history,
-            os.path.join(self.config.buffer_path, self.env.name)
+            # os.path.join(self.config.buffer_path, self.env.name)
         )
         rewards = deque(maxlen=self.config.num_episodes_test)
         max_q_values = deque(maxlen=1000)
@@ -192,7 +192,7 @@ class QN(object):
                 t += 1
                 last_eval += 1
                 last_record += 1
-                if self.config.render_train: self.env.render()
+                if self.env.render_mode == "human": self.env.render()
                 # replay memory stuff
                 idx = replay_buffer.store_frame(state)
                 q_input = replay_buffer.encode_recent_observation()

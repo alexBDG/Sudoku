@@ -14,8 +14,8 @@ try:
 except ImportError:
     MAX_STEPS = 1000
     sudoku_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "configs", "data", "sudoku-3m.csv"
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "data", "sudoku-3m.csv"
     )
     min_difficulty = 0.
 
@@ -47,6 +47,8 @@ class SudokuGenerator(object):
         # Either `"train"` or `"test"`
         self.step_mode = step_mode
         # Load data
+        if not os.path.exists(sudoku_path):
+            raise FileNotFoundError("You have to download the Sudoku database!")
         df = pd.read_csv(sudoku_path)
 
         # Filter by difficulty

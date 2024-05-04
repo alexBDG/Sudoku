@@ -19,7 +19,7 @@ def get_parsed_arguments():
     parser.add_argument(
         "--playing-mode", help=(
             "How to play the game, using the algorithm or manualy."
-        ), default="automatic", choices=["automatic", "manual"]
+        ), default="learning", choices=["learning", "manual"]
     )
     args = parser.parse_args()
     return args
