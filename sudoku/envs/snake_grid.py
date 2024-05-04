@@ -6,33 +6,109 @@ import gymnasium as gym
 import pygame_chart as pyc
 from collections import namedtuple
 
+# Local imports.
+try:
+    from ..configs.settings import MAX_STEPS
+except ImportError:
+    MAX_STEPS = 10000
+
 # Set seed
 np.random.seed(0)
 
 
 
 class Direction(Enum):
-    NONE = 0
-    RIGHT = 1
-    LEFT = 2
-    UP = 3
-    DOWN = 4
+    RIGHT = 0
+    LEFT = 1
+    UP = 2
+    DOWN = 3
+    NONE = 4
 
-    @classmethod
-    def get_action(self, idx):
-        if idx == 0: return self.NONE
-        elif idx == 1: return self.RIGHT
-        elif idx == 2: return self.LEFT
-        elif idx == 3: return self.UP
-        elif idx == 4: return self.DOWN
+class RelativeDirection(Enum):
+    RIGHT = 0
+    LEFT = 1
+    FORWARD = 2
 
-    @classmethod
-    def get_idx(self, action):
-        if action == self.NONE: return 0
-        elif action == self.RIGHT: return 1
-        elif action == self.LEFT: return 2
-        elif action == self.UP: return 3
-        elif action == self.DOWN: return 4
+def relative_to_absolute(action, previous_action):
+    """Translate relative actions to absolute."""
+    if action == RelativeDirection.FORWARD:
+        action = previous_action
+
+    elif action == RelativeDirection.LEFT:
+        if previous_action == Direction.LEFT:
+            action = Direction.DOWN
+        elif previous_action == Direction.RIGHT:
+            action = Direction.UP
+        elif previous_action == Direction.UP:
+            action = Direction.LEFT
+        else:
+            action = Direction.RIGHT
+
+    else:
+        if previous_action == Direction.LEFT:
+            action = Direction.UP
+        elif previous_action == Direction.RIGHT:
+            action = Direction.DOWN
+        elif previous_action == Direction.UP:
+            action = Direction.RIGHT
+        else:
+            action = Direction.LEFT
+
+    return action
+
+def absolute_to_relative(action, previous_action):
+    """Translate absolute actions to relative."""
+    if action == Direction.UP:
+        if previous_action == Direction.LEFT:
+            action = RelativeDirection.RIGHT
+        elif previous_action == Direction.UP:
+            action = RelativeDirection.FORWARD
+        elif previous_action == Direction.RIGHT:
+            action = RelativeDirection.LEFT
+        else:
+            action = RelativeDirection.FORWARD
+
+    elif action == Direction.DOWN:
+        if previous_action == Direction.LEFT:
+            action = RelativeDirection.LEFT
+        elif previous_action == Direction.RIGHT:
+            action = RelativeDirection.RIGHT
+        elif previous_action == Direction.DOWN:
+            action = RelativeDirection.FORWARD
+        else:
+            action = RelativeDirection.FORWARD
+
+    elif action == Direction.LEFT:
+        if previous_action == Direction.LEFT:
+            action = RelativeDirection.FORWARD
+        elif previous_action == Direction.UP:
+            action = RelativeDirection.LEFT
+        elif previous_action == Direction.DOWN:
+            action = RelativeDirection.RIGHT
+        else:
+            action = RelativeDirection.FORWARD
+
+    elif action == Direction.RIGHT:
+        if previous_action == Direction.UP:
+            action = RelativeDirection.RIGHT
+        elif previous_action == Direction.RIGHT:
+            action = RelativeDirection.FORWARD
+        elif previous_action == Direction.DOWN:
+            action = RelativeDirection.LEFT
+        else:
+            action = RelativeDirection.FORWARD
+
+    else:
+        action = RelativeDirection.FORWARD
+
+    return action
+
+INVALID_DIRECTIONS = [
+    (Direction.RIGHT, Direction.LEFT),
+    (Direction.LEFT, Direction.RIGHT),
+    (Direction.UP, Direction.DOWN),
+    (Direction.DOWN, Direction.UP),
+]
 
 Point = namedtuple('Point', 'x, y')
 
@@ -44,7 +120,6 @@ BLUE2 = (0, 100, 255)
 BLACK = (0, 0, 0)
 
 # Environment variables
-N_ACTIONS = 1 + 4
 OBS_SHAPE = (18, 18, 1)
 
 
@@ -82,7 +157,7 @@ class SnakeEnv(gym.Env):
     name = "snake"
 
     def __init__(self, render_mode="human", step_mode="train",
-                 dtype=np.float32):
+                 use_relative_direction=True, dtype=np.float32):
         self.window_width = 513  # The size of the PyGame window
         self.window_heigh = 513  # The size of the PyGame window
         self.step_mode = step_mode
@@ -95,8 +170,14 @@ class SnakeEnv(gym.Env):
         self._init_game_state()
         self._place_food()
 
+        self.use_relative_direction = use_relative_direction
+        if self.use_relative_direction:
+            n_actions = len(RelativeDirection)
+        else:
+            n_actions = len(Direction)
+
         # Actions
-        self.action_space = Discrete(N_ACTIONS)
+        self.action_space = Discrete(n_actions)
 
         # Observations
         self.observation_space = Box(
@@ -112,7 +193,7 @@ class SnakeEnv(gym.Env):
 
     def _init_game_state(self):
         # init game state
-        self.direction = Direction.RIGHT
+        self.previous_action = Direction.RIGHT
 
         self.head = Point(int(OBS_SHAPE[0]/2), int(OBS_SHAPE[0]//2))
         self.snake = [
@@ -166,9 +247,9 @@ class SnakeEnv(gym.Env):
         # 2. move
         self._move(action) # update the head
 
-        # 3. check if game over
+        # 3. check if game over or time out
         terminated = False
-        if self._is_collision():
+        if self._is_collision() or self.current_step == MAX_STEPS:
             terminated = True
 
         reward = self._compute_reward(terminated)
@@ -199,34 +280,44 @@ class SnakeEnv(gym.Env):
         return False
 
 
-    def _move(self, action):
-        if isinstance(action, (int, np.int64)):
-            action = Direction.get_action(action)
+    def _is_invalid_movement(self, action):
+        """Check if the movement is invalid, according to INVALID_DIRECTIONS."""
+        is_invalid = False
 
-        previous_direction = self.direction
-        if action != Direction.NONE:
-            self.direction = action
+        if (action, self.previous_action) in INVALID_DIRECTIONS:
+            is_invalid = True
+
+        return is_invalid
+
+
+    def _move(self, action):
+        # Transforms numerical value to direction object
+        if isinstance(action, (int, np.int64)):
+            if self.use_relative_direction:
+                action = RelativeDirection(action)
+            else:
+                action = Direction(action)
+
+        # Change system if needed
+        if self.use_relative_direction:
+            action = relative_to_absolute(action, self.previous_action)
+
+        # Manage idle
+        if action == Direction.NONE or self._is_invalid_movement(action):
+            action = self.previous_action
+        else:
+            self.previous_action = action
 
         x = self.head.x
         y = self.head.y
 
-        # # Cannot go back, only left, right and forward (in the snake referencial)
-        # if (
-        #     (previous_direction == Direction.RIGHT) and
-        #     (self.direction == Direction.LEFT)
-        # ) or (
-        #     (previous_direction == Direction.UP) and
-        #     (self.direction == Direction.DOWN)
-        # ):
-        #     return 0
-
-        if self.direction == Direction.RIGHT:
+        if action == Direction.RIGHT:
             x += 1
-        elif self.direction == Direction.LEFT:
+        elif action == Direction.LEFT:
             x -= 1
-        elif self.direction == Direction.DOWN:
+        elif action == Direction.DOWN:
             y += 1
-        elif self.direction == Direction.UP:
+        elif action == Direction.UP:
             y -= 1
 
         self.head = Point(x, y)
@@ -319,7 +410,7 @@ class SnakeEnv(gym.Env):
         canvas.blit(figure.background, (self.window_width+25, 25))
 
         draw_arrows(
-            canvas, action=self.direction,
+            canvas, action=self.previous_action,
             offset=(self.window_width/2, self.window_heigh+50)
         )
 
@@ -379,7 +470,7 @@ def draw_arrows(canvas, action, offset):
 
 
 def play(fps=None, store=False):
-    game = SnakeEnv(render_mode="human")
+    game = SnakeEnv(render_mode="human", use_relative_direction=False)
 
     if isinstance(fps, int):
         game.metadata["render_fps"] = fps
@@ -416,11 +507,10 @@ def play(fps=None, store=False):
                     elif event.key == pygame.K_q:
                         quit()
 
+            relative_action = absolute_to_relative(action, game.previous_action)
             state, reward, done, _, _ = game.step(action)
             if store:
-                episode_buffer.store_effect(
-                    Direction.get_idx(action), reward, done
-                )
+                episode_buffer.store_effect(relative_action.value, reward, done)
             if done:
                 if store: episode_buffer.save()
                 break
